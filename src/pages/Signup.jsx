@@ -1,15 +1,31 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { FaEnvelope, FaLock, FaUser } from "react-icons/fa";
+import axios from "axios"; 
 import signupImg from "../assets/signupImg.jpg"; 
-import "./signup.css"; // gamitin yung CSS mo na tama
+import "./signup.css";
 
 export default function Signup() {
+  // States for form fields
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Signup form submitted!");
+
+    try {
+      await axios.post("http://localhost:5000/register", {
+        name,
+        email,
+        password,
+      });
+      alert("User registered!");
+    } catch (err) {
+      console.error(err);
+      alert("Error registering user");
+    }
   };
 
   return (
@@ -31,12 +47,24 @@ export default function Signup() {
             <form onSubmit={handleSubmit}>
               <div className="input-box">
                 <i><FaUser /></i>
-                <input type="text" placeholder="Enter your name" required />
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
 
               <div className="input-box">
                 <i><FaEnvelope /></i>
-                <input type="email" placeholder="Enter your email" required />
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
 
               <div className="input-box">
@@ -44,6 +72,8 @@ export default function Signup() {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Create a password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>

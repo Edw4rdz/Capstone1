@@ -2,9 +2,34 @@ import React, { useState } from "react";
 import { FaEnvelope, FaLock } from "react-icons/fa";
 import loginImg from "../assets/loginImg.jpg"; // keep your image here
 import "./login.css";
+import axios from "axios";
 
 export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await axios.post("http://localhost:5000/login", {
+        email,
+        password,
+      });
+
+      if (res.data.success) {
+        alert("Login successful!");
+        // Example: redirect user to dashboard later
+        // window.location.href = "/dashboard";
+      } else {
+        alert("Invalid email or password");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error logging in");
+    }
+  };
 
   return (
     <div className="login-page">
@@ -16,13 +41,19 @@ export default function Login() {
           </h2>
           <p className="subtitle">Sign in to start your session</p>
 
-          <form>
+          <form onSubmit={handleSubmit}>
             {/* Email */}
             <div className="input-box">
               <i>
                 <FaEnvelope />
               </i>
-              <input type="email" placeholder="Enter your email" required />
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
 
             {/* Password */}
@@ -33,6 +64,8 @@ export default function Login() {
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
