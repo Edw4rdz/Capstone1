@@ -1,19 +1,19 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import "./pdftoppt.css"; // includes both sidebar + pdf styles
+import "./pdftoppt.css";
 
-function PDFToPPT() {
+export default function PDFToPPT() {
   const [slides, setSlides] = useState(15);
 
   return (
-    <div className="dashboard">
+    <div className="pdftoppt-page">
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="logo">
           <i className="fa fa-sliders"></i>
           <div>
             <h2>PPT Tools</h2>
-            <p>Convert &amp; Generate</p>
+            <p>Convert & Generate</p>
           </div>
         </div>
         <nav>
@@ -32,43 +32,42 @@ function PDFToPPT() {
       {/* Main Content */}
       <main className="main">
         <div className="container">
+          {/* Header */}
           <div className="header">
-            <h1>PDF to PPT Converter</h1>
-            {/* Subtitle directly below title */}
-            <p className="subtitle highlight">
-              Transform your PDF documents into editable PowerPoint presentations
-            </p>
+            <div className="header-icon">📄</div>
+            <div>
+              <h1>PDF to PPT Converter</h1>
+              <p>Transform your PDF documents into editable PowerPoint presentations</p>
+            </div>
           </div>
 
-          <div className="content">
-            {/* Left column */}
+          {/* Content Two-Column */}
+          <div className="content-grid">
+            {/* Left Column */}
             <div className="left">
-              {/* Upload card */}
-              <div className="card upload-card">
+              {/* Upload Card */}
+              <div className="card file-upload">
                 <h2>Upload Your PDF</h2>
-                <div className="dropzone">
-                  <div className="drop-content">
-                    <div className="upload-icon">⬆</div>
-                    <h3>
-                      Drop your PDF file here, or{" "}
-                      <span className="browse">browse</span>
-                    </h3>
-                    <p>Supports PDF files up to 50MB</p>
-                  </div>
-                  <input type="file" accept=".pdf" />
+                <div className="upload-area">
+                  <div className="upload-icon">⬆</div>
+                  <h3>
+                    Drop your PDF here, or <span className="browse">browse</span>
+                  </h3>
+                  <p>Supports PDF files up to 50MB</p>
+                  <input type="file" className="file-input" accept=".pdf" />
                 </div>
                 <div className="requirements">
                   <h4>Upload Requirements</h4>
                   <ul>
-                    <li>• PDF files only</li>
-                    <li>• Maximum file size: 50MB</li>
-                    <li>• Text-based PDFs work best</li>
-                    <li>• Scanned PDFs may have limited text extraction</li>
+                    <li>PDF files only</li>
+                    <li>Maximum file size: 50MB</li>
+                    <li>Text-based PDFs work best</li>
+                    <li>Scanned PDFs may have limited text extraction</li>
                   </ul>
                 </div>
               </div>
 
-              {/* Customize card */}
+              {/* Customize Card */}
               <div className="card customize-card">
                 <h2>Customize Your Presentation</h2>
                 <div className="slider-section">
@@ -94,25 +93,31 @@ function PDFToPPT() {
               </div>
             </div>
 
-            {/* Right column */}
-            <div className="right">
+            {/* Right Column */}
+            <div className="right right-sidebar">
+              {/* How it Works */}
               <div className="card info-box">
                 <h3>How it works</h3>
                 <ol>
                   <li>
                     <strong>Upload PDF</strong>
-                    <br /> Select the PDF file you want to convert
+                    <br />
+                    Select the PDF file you want to convert
                   </li>
                   <li>
                     <strong>Customize slides</strong>
-                    <br /> Choose number of slides and presentation style
+                    <br />
+                    Choose number of slides and presentation style
                   </li>
                   <li>
                     <strong>Download PPT</strong>
-                    <br /> Get your editable PowerPoint presentation
+                    <br />
+                    Get your editable PowerPoint presentation
                   </li>
                 </ol>
               </div>
+
+              {/* Features */}
               <div className="card info-box">
                 <h3>Features</h3>
                 <ul className="features">
@@ -129,5 +134,3 @@ function PDFToPPT() {
     </div>
   );
 }
-
-export default PDFToPPT;

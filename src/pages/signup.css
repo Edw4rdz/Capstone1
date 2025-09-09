@@ -1,6 +1,7 @@
-/* Google Font Link */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&display=swap');
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
 
+/* Reset */
 * {
   margin: 0;
   padding: 0;
@@ -8,154 +9,141 @@
   font-family: "Poppins", sans-serif;
 }
 
-body {
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #6D4FC2; /* <-- use the same middle purple */
-  padding: 30px;
+html, body {
+  height: 100%;
+  width: 100%;
+  background: #6D4FC2; /* full purple background */
 }
 
-
-/* Mid-size main container (match login-container) */
-.container {
+/* Wrapper */
+.signup-page {
   display: flex;
-  width: 800px;        /* fixed mid size */
-  height: 520px;       /* fixed mid size */
+  justify-content: center;
+  align-items: center;
+  height: 100vh;  /* full screen */
+  width: 100vw;
+  background: #6D4FC2;
+}
+
+/* Mid-size card container */
+.signup-container {
+  display: flex;
+  width: 900px;     /* mid-size width */
+  height: 560px;    /* mid-size height */
   background: #fff;
-  border-radius: 10px; /* softer corners */
+  border-radius: 12px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.18);
   overflow: hidden;
-  position: relative;
 }
 
-/* LEFT SIDE IMAGE */
-.container .cover {
+/* LEFT SIDE - image with overlay text */
+.cover {
   flex: 1;
   position: relative;
 }
 
-.container .cover img {
+.cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.container .cover .text {
+.cover .text {
   position: absolute;
-  z-index: 10;
-  height: 100%;
-  width: 100%;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-.container .cover .text::before {
-  content: '';
-  position: absolute;
-  height: 100%;
-  width: 100%;
-  opacity: 0.5;
-  background: #6D4FC2; /* <-- match this with body */
-}
-
-
-.cover .text .text-1,
-.cover .text .text-2 {
-  z-index: 20;
-  font-size: 24px;
-  font-weight: 600;
-  color: #fff;
+  background: rgba(109, 79, 194, 0.6);
   text-align: center;
 }
 
-.cover .text .text-2 {
-  font-size: 15px;
-  font-weight: 500;
+.cover .text .text-1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 6px;
 }
 
-/* RIGHT SIDE FORM */
-.container .forms {
+.cover .text .text-2 {
+  font-size: 16px;
+  font-weight: 400;
+  color: #fff;
+}
+
+/* RIGHT SIDE - signup form */
+.forms {
   flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 45px 35px;
+  background: #fff;
 }
 
 .form-content {
   width: 100%;
 }
 
-.form-content .signup-form {
+.signup-form {
   width: 100%;
 }
 
-.forms .form-content .title {
+.forms .title {
   position: relative;
-  font-size: 26px;  /* match login */
+  font-size: 26px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 10px;
+  margin-bottom: 20px;
 }
 
-.forms .form-content .title:before {
+.forms .title:before {
   content: '';
   position: absolute;
   left: 0;
-  bottom: -3px;
+  bottom: -6px;
   height: 3px;
   width: 25px;
-  background: #6B55C5;
+  background: #6D4FC2;
 }
 
-.forms .form-content .input-box {
+/* Input box */
+.input-box {
   display: flex;
   align-items: center;
   margin-bottom: 18px;
   position: relative;
 }
 
-.form-content .input-box input {
+.input-box input {
   width: 100%;
-  height: 48px;         /* match login */
+  height: 48px;
   border: 1px solid #ccc;
-  border-radius: 6px;   /* match login */
+  border-radius: 6px;
   padding: 0 36px;
   font-size: 15px;
 }
 
-.form-content .input-box input:focus {
-  border-color: #6B55C5;
+.input-box input:focus {
+  border-color: #6D4FC2;
 }
 
-.form-content .input-box i {
+.input-box i {
   position: absolute;
   top: 50%;
   left: 12px;
   transform: translateY(-50%);
-  color: #6B55C5;
+  color: #6D4FC2;
   font-size: 17px;
 }
 
-.show-password {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 18px;
-  font-size: 14px;
-  color: #333;
-}
-
 /* Button */
-.forms .form-content .button input {
+.button input {
   width: 100%;
-  height: 48px;         /* match login */
+  height: 48px;
   color: #fff;
-  background: #6B55C5;
+  background: #6D4FC2;
   border-radius: 6px;
   border: none;
   font-size: 15px;
@@ -164,22 +152,23 @@ body {
   transition: all 0.3s ease;
 }
 
-.forms .form-content .button input:hover {
-  background: #6B55C5;
+.button input:hover {
+  background: #5a42a6;
 }
 
-.forms .form-content .sign-up-text {
+/* Sign up text */
+.sign-up-text {
   text-align: center;
   margin-top: 18px;
   font-size: 14px;
 }
 
-.forms .form-content .sign-up-text a {
-  color: #6B55C5;
+.sign-up-text a {
+  color: #6D4FC2;
   text-decoration: none;
   font-weight: 500;
 }
 
-.forms .form-content .sign-up-text a:hover {
+.sign-up-text a:hover {
   text-decoration: underline;
 }

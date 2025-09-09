@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import "./ai-generator.css"; // Generator-specific
+import "./ai-generator.css";
 
 export default function AIGenerator() {
   const [slides, setSlides] = useState(10);
 
   return (
-    <div className="dashboard">
+    <div className="ai-dashboard">
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="logo">
+      <aside className="ai-sidebar">
+        <div className="ai-logo">
           <i className="fa-solid fa-sliders"></i>
           <div>
             <h2>PPT Tools</h2>
@@ -17,7 +17,7 @@ export default function AIGenerator() {
           </div>
         </div>
 
-        <nav>
+        <nav className="ai-nav">
           <Link to="/" className="active">
             <i className="fa fa-home"></i> Dashboard
           </Link>
@@ -30,42 +30,42 @@ export default function AIGenerator() {
         </nav>
       </aside>
 
-      {/* Main */}
-      <main className="main">
-        <div className="container">
+      {/* Main Content */}
+      <main className="ai-main">
+        <div className="ai-container">
           {/* Header */}
-        <div className="header">
-      <h1>AI PowerPoint Generator</h1>
-      <p className="subtitle highlight">
-       Create professional presentations from any topic using AI
-        </p>
-        </div>
+          <div className="ai-header">
+            <h1>AI PowerPoint Generator</h1>
+            <p className="ai-subtitle">
+              Create professional presentations from any topic using AI
+            </p>
+          </div>
 
-
-          <div className="content">
-            {/* Left side */}
-            <div className="left">
+          {/* Two-column Content */}
+          <div className="ai-content">
+            {/* Left Column */}
+            <div className="ai-left">
               {/* Presentation Topic */}
-              <div className="card card-top">
+              <div className="ai-card ai-card-top">
                 <h2>What's your presentation about?</h2>
-                <label className="section-label">Presentation Topic</label>
+                <label className="ai-section-label">Presentation Topic</label>
                 <textarea
                   placeholder="Describe your presentation topic in detail. Include key points, target audience, and any specific requirements..."
                 ></textarea>
-                <p className="section-label">Quick examples:</p>
-                <div className="tags">
-                  <span className="tag">Climate Change Solutions</span>
-                  <span className="tag">Digital Marketing Strategy 2024</span>
-                  <span className="tag">Introduction to Machine Learning</span>
-                  <span className="tag">Sustainable Business Practices</span>
-                  <span className="tag">Remote Work Best Practices</span>
+                <p className="ai-section-label">Quick examples:</p>
+                <div className="ai-tags">
+                  <span className="ai-tag">Climate Change Solutions</span>
+                  <span className="ai-tag">Digital Marketing Strategy 2024</span>
+                  <span className="ai-tag">Introduction to Machine Learning</span>
+                  <span className="ai-tag">Sustainable Business Practices</span>
+                  <span className="ai-tag">Remote Work Best Practices</span>
                 </div>
               </div>
 
               {/* Customize */}
-              <div className="card">
+              <div className="ai-card">
                 <h2>Customize Your Presentation</h2>
-                <div className="slider-section">
+                <div className="ai-slider-section">
                   <label htmlFor="slides">Number of Slides</label>
                   <input
                     type="range"
@@ -77,9 +77,9 @@ export default function AIGenerator() {
                   />
                   <span id="slide-count">{slides} slides</span>
                 </div>
-                <div className="style-box">
-                  <p className="section-label">Presentation Style</p>
-                  <div className="style-card">
+                <div className="ai-style-box">
+                  <p className="ai-section-label">Presentation Style</p>
+                  <div className="ai-style-card">
                     <strong>Professional</strong>
                     <br />
                     <small>Clean, business-focused design</small>
@@ -88,10 +88,10 @@ export default function AIGenerator() {
               </div>
             </div>
 
-            {/* Right side */}
-            <div className="right">
-              {/* How it works */}
-              <div className="info-box">
+            {/* Right Column */}
+            <div className="ai-right">
+              {/* How it Works */}
+              <div className="ai-info-box">
                 <h3>How it works</h3>
                 <ol>
                   <li>
@@ -113,9 +113,9 @@ export default function AIGenerator() {
               </div>
 
               {/* Features */}
-              <div className="info-box">
+              <div className="ai-info-box">
                 <h3>Features</h3>
-                <ul className="features">
+                <ul className="ai-features">
                   <li>AI-powered content generation</li>
                   <li>Professional design templates</li>
                   <li>Customizable slide count</li>

@@ -1,6 +1,7 @@
 /* Google Font Link */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
 
+/* Reset */
 * {
   margin: 0;
   padding: 0;
@@ -8,47 +9,51 @@
   font-family: "Poppins", sans-serif;
 }
 
-body, html {
+html, body {
   height: 100%;
-  background: #6D4FC2; /* ✅ use the same purple everywhere */
+  width: 100%;
+  background: #6D4FC2; /* full purple background */
 }
 
+/* Wrapper */
 .login-page {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background: #6D4FC2; /* ✅ matches top, bottom, and middle */
+  height: 100vh;  /* full screen */
+  width: 100vw;
+  background: #6D4FC2;
 }
 
-/* Mid-size main container */
+/* Mid-size card container */
 .login-container {
   display: flex;
-  width: 800px;        /* mid size width */
-  height: 520px;       /* mid size height */
+  width: 850px;     /* mid-size width */
+  height: 550px;    /* mid-size height */
   background: #fff;
-  border-radius: 10px; /* softer corners */
-  box-shadow: 0 6px 18px rgba(0,0,0,0.18); /* lighter shadow */
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
   overflow: hidden;
 }
 
 /* LEFT SIDE - form */
 .login-left {
   flex: 1;
-  padding: 45px 35px;  
+  padding: 45px 35px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  background: #fff;
 }
 
 .title {
-  font-size: 26px;     
+  font-size: 26px;
   font-weight: 600;
   margin-bottom: 10px;
 }
 
 .title span {
-  color: #6D4FC2; /* ✅ match button and accents */
+  color: #6D4FC2;
 }
 
 .subtitle {
@@ -65,9 +70,9 @@ body, html {
 
 .input-box input {
   width: 100%;
-  height: 48px;        
+  height: 48px;
   border: 1px solid #ccc;
-  border-radius: 6px;  
+  border-radius: 6px;
   padding: 0 36px;
   font-size: 15px;
 }
@@ -77,7 +82,7 @@ body, html {
   top: 50%;
   left: 12px;
   transform: translateY(-50%);
-  color: #6D4FC2; /* ✅ match */
+  color: #6D4FC2;
   font-size: 17px;
 }
 
@@ -95,7 +100,7 @@ body, html {
 .login-btn {
   width: 100%;
   height: 48px;
-  background: #6D4FC2; /* ✅ match */
+  background: #6D4FC2;
   color: #fff;
   font-size: 15px;
   font-weight: 500;
@@ -106,7 +111,7 @@ body, html {
 }
 
 .login-btn:hover {
-  background: #5a42a6; /* slightly darker hover */
+  background: #5a42a6;
 }
 
 /* Signup text */
@@ -116,7 +121,7 @@ body, html {
 }
 
 .signup-text a {
-  color: #6D4FC2; /* ✅ match */
+  color: #6D4FC2;
   text-decoration: none;
   font-weight: 500;
 }
@@ -128,7 +133,7 @@ body, html {
 /* RIGHT SIDE - image */
 .login-right {
   flex: 1;
-  background: #6D4FC2; /* ✅ fallback */
+  background: #6D4FC2;
 }
 
 .login-right img {
@@ -136,5 +141,4 @@ body, html {
   height: 100%;
   object-fit: cover;
   display: block;
-  background: #6D4FC2; /* ✅ ensures consistency */
 }

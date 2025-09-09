@@ -1,273 +1,114 @@
-/* ========== Layout ========== */
-.dashboard {
-  display: flex;
-  height: 100vh;
-  background: #f7f8fa;
-  font-family: "Poppins", sans-serif;
-}
+  /* Two-column layout */
+  .content {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+  }
 
-/* ========== Sidebar ========== */
-.sidebar {
-  width: 250px;
-  background: #1e293b; /* Dark slate */
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-}
+  .left {
+    flex: 2;
+  }
 
-.sidebar .logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 30px;
-}
+  .right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 
-.sidebar .logo h2 {
-  font-size: 18px;
-  margin: 0;
-}
+  /* Cards */
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+  }
 
-.sidebar .logo p {
-  font-size: 12px;
-  color: #cbd5e1;
-}
+  h2 {
+    margin-bottom: 15px;
+  }
 
-.sidebar nav a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 15px;
-  margin-bottom: 10px;
-  color: #fff;
-  text-decoration: none;
-  border-radius: 8px;
-  transition: background 0.3s;
-}
+  .dropzone {
+    border: 2px dashed #ef4444;
+    border-radius: 10px;
+    padding: 25px;
+    text-align: center;
+    position: relative;
+    transition: background 0.3s;
+  }
 
-.sidebar nav a:hover,
-.sidebar nav a.active {
-  background: #334155;
-}
+  .dropzone:hover {
+    background: #fef2f2;
+  }
 
-/* ========== Main Content ========== */
-.main {
-  flex: 1;
-  padding: 30px;
-  overflow-y: auto;
-}
+  .upload-icon {
+    font-size: 2rem;
+    color: #ef4444;
+    margin-bottom: 10px;
+  }
 
-.main h1 span {
-  color: #ef4444;
-}
+  .dropzone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
 
-/* ========== Header & Subtitle ========== */
-.header h1 {
-  font-size: 28px;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
+  .browse {
+    color: #ef4444;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 
-.header .subtitle {
-  margin-top: 12px;               /* spacing below h1 */
-  display: block;
-  font-size: 16px;
-  font-weight: 500;
-  text-align: left;
-  padding: 10px 14px;
-  background: #fee2e2;            /* light red background */
-  color: #b91c1c;                 /* darker red text */
-  border-left: 4px solid #ef4444; /* highlight effect */
-  border-radius: 6px;
-  max-width: 600px;               /* keep it neat */
-}
+  .requirements {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 10px;
+  }
 
-/* ========== Tools Grid ========== */
-.tools-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-}
+  .slider-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+  }
 
-.tool-card-link {
-  text-decoration: none;
-  color: inherit;
-}
+  input[type="range"] {
+    width: 60%;
+  }
 
-.tool-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s;
-  cursor: pointer;
-}
+  .style-box {
+    margin-top: 15px;
+  }
 
-.tool-card:hover {
-  transform: translateY(-5px);
-}
+  .style-card {
+    background: #f1f3f5;
+    padding: 10px;
+    border-radius: 8px;
+    display: inline-block;
+  }
 
-.tool-icon {
-  font-size: 30px;
-  margin-bottom: 10px;
-}
+  .info-box h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
 
-.tool-icon.plus {
-  color: #8b5cf6; /* Purple */
-}
+  .info-box ol, .info-box ul {
+    padding-left: 20px;
+  }
 
-.tool-icon.pdf {
-  color: #ef4444; /* Red */
-}
+  .features li {
+    margin-bottom: 10px;
+    position: relative;
+    padding-left: 25px;
+  }
 
-.tool-icon.word {
-  color: #3b82f6; /* Blue */
-}
-
-.tool-icon.text {
-  color: #22c55e; /* Green */
-}
-
-.tool-icon.excel {
-  color: #16a34a; /* Dark green */
-}
-
-.tool-title {
-  font-size: 16px;
-  margin-bottom: 8px;
-}
-
-.tool-desc {
-  font-size: 14px;
-  color: #6b7280;
-  margin-bottom: 10px;
-}
-
-.tool-arrow {
-  float: right;
-  color: #9ca3af;
-}
-
-/* ========== Content Area (Two Column Layout) ========== */
-.content {
-  display: flex;
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.left {
-  flex: 2;
-}
-
-.right {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* ========== Cards ========== */
-.card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0px 3px 8px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
-}
-
-/* First card (Presentation topic) pulled closer to subtitle */
-.left .card:first-child {
-  margin-top: -0.5cm;
-}
-
-h2 {
-  margin-bottom: 15px;
-}
-
-/* ========== Dropzone ========== */
-.dropzone {
-  border: 2px dashed #ef4444;
-  border-radius: 10px;
-  padding: 25px;
-  text-align: center;
-  position: relative;
-  transition: background 0.3s;
-}
-
-.dropzone:hover {
-  background: #fef2f2;
-}
-
-.upload-icon {
-  font-size: 2rem;
-  color: #ef4444;
-  margin-bottom: 10px;
-}
-
-.dropzone input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.browse {
-  color: #ef4444;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-/* ========== Info/Features Boxes ========== */
-.requirements {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  padding: 15px;
-  margin-top: 10px;
-}
-
-.slider-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 10px;
-}
-
-input[type="range"] {
-  width: 60%;
-}
-
-.style-box {
-  margin-top: 15px;
-}
-
-.style-card {
-  background: #f1f3f5;
-  padding: 10px;
-  border-radius: 8px;
-  display: inline-block;
-}
-
-.info-box h3 {
-  font-size: 16px;
-  margin-bottom: 10px;
-}
-
-.info-box ol, 
-.info-box ul {
-  padding-left: 20px;
-}
-
-.features li {
-  margin-bottom: 10px;
-  position: relative;
-  padding-left: 25px;
-}
-
-.features li::before {
-  content: "✔";
-  color: #28a745;
-  position: absolute;
-  left: 0;
-}
+  .features li::before {
+    content: "✔";
+    color: #28a745;
+    position: absolute;
+    left: 0;
+  }

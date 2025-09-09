@@ -15,28 +15,37 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <aside className="sidebar">
-        <div className="logo"><i className="fa fa-sliders"></i>
-          <div><h2>PPT Tools</h2><p>Convert & Generate</p></div>
+        <div className="logo">
+          <i className="fa fa-sliders" />
+          <div>
+            <h2>PPT Tools</h2>
+            <p>Convert & Generate</p>
+          </div>
         </div>
         <nav>
-          <Link to="/" className="active"><i className="fa fa-home"></i> Dashboard</Link>
-          <Link to="/conversion"><i className="fa fa-history"></i> Conversions</Link>
-          <Link to="/settings"><i className="fa fa-cog"></i> Settings</Link>
+          <Link to="/" className="active"><i className="fa fa-home" /> Dashboard</Link>
+          <Link to="/conversion"><i className="fa fa-history" /> Conversions</Link>
+          <Link to="/settings"><i className="fa fa-cog" /> Settings</Link>
         </nav>
       </aside>
 
       <main className="main">
-        <div className="container">
-          <h1>Welcome to <span>PPT Tools</span></h1>
-          <p>Choose a tool below to get started.</p>
+        <div className="content">
+          <div className="header">
+            <h1><span>✨ Welcome to</span> PPT Tools</h1>
+            <p>Choose a tool below to get started</p>
+          </div>
+
           <div className="tools-grid">
             {tools.map((tool, index) => (
               <Link key={index} to={tool.path} className="tool-card-link">
                 <div className="tool-card">
-                  <div className={`tool-icon ${tool.colorClass}`}><i className={`fa ${tool.icon}`}></i></div>
+                  <div className={`tool-icon ${tool.colorClass}`}>
+                    <i className={`fa ${tool.icon}`} />
+                  </div>
                   <h3 className="tool-title">{tool.title}</h3>
                   <p className="tool-desc">{tool.desc}</p>
-                  <span className="tool-arrow"><i className="fa fa-arrow-right"></i></span>
+                  <span className="tool-arrow"><i className="fa fa-arrow-right" /></span>
                 </div>
               </Link>
             ))}
