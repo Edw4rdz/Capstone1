@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import "./texttoppt.css"; // keep your existing CSS
 import "./Dashboard"; // Sidebar + Global
@@ -7,6 +7,7 @@ export default function TextToPPT() {
   const [fileContent, setFileContent] = useState("");
   const [fileName, setFileName] = useState("");
   const [slides, setSlides] = useState(8);
+  const fileInputRef = useRef(null);
 
   // File upload handlers
   const handleFileUpload = (event) => {
@@ -32,6 +33,21 @@ export default function TextToPPT() {
 
   const handleDragOver = (e) => e.preventDefault();
 
+  // ✅ Download text file
+  const handleDownload = () => {
+    if (!fileContent) {
+      alert("No content to download!");
+      return;
+    }
+    const blob = new Blob([fileContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName || "converted.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="dashboard">
       {/* Sidebar */}
@@ -44,7 +60,7 @@ export default function TextToPPT() {
           </div>
         </div>
         <nav>
-          <Link to="/" className="active">
+          <Link to="/dashboard" className="active">
             <i className="fa-solid fa-house"></i> Dashboard
           </Link>
           <Link to="/conversion">
@@ -59,14 +75,12 @@ export default function TextToPPT() {
       {/* Main Content */}
       <main className="main">
         <div className="container">
-          {/* ✅ Fixed header: no red plus */}
+          {/* ✅ Header */}
           <header className="header">
             <div className="header-icon">TXT</div>
             <div>
               <h1>Convert Text to PPT</h1>
-              <p>
-                Transform your plain text into engaging PowerPoint presentations
-              </p>
+              <p>Transform your plain text into engaging PowerPoint presentations</p>
             </div>
           </header>
 
@@ -80,6 +94,7 @@ export default function TextToPPT() {
                   className="file-upload"
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
+                  onClick={() => fileInputRef.current.click()}
                 >
                   <div className="upload-area">
                     <div className="upload-icon">⬆</div>
@@ -95,12 +110,26 @@ export default function TextToPPT() {
                     )}
                     <small>Supports .txt files only</small>
                   </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt"
+                    style={{ display: "none" }}
+                    onChange={handleFileUpload}
+                  />
                 </div>
 
                 <div className="info-row">
                   <span>{fileContent.length} characters</span>
                   <span>Estimated slides: {slides}</span>
                 </div>
+
+                {/* ✅ Download button */}
+                {fileContent && (
+                  <button className="download-btn" onClick={handleDownload}>
+                    Download TXT
+                  </button>
+                )}
               </section>
 
               {/* Customize Presentation Card */}
@@ -172,8 +201,7 @@ export default function TextToPPT() {
                 <h3>Content Guidelines</h3>
                 <ul>
                   <li>
-                    <strong>Structure:</strong> Use clear paragraphs with distinct
-                    topics
+                    <strong>Structure:</strong> Use clear paragraphs with distinct topics
                   </li>
                   <li>
                     <strong>Length:</strong> 500-5000 words work best

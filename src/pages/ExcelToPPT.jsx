@@ -1,9 +1,62 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import "./exceltoppt.css"; // keep your CSS
 import "./Dashboard"; // Sidebar + Global
 import { Link } from "react-router-dom";
 
 export default function ExcelToPPT() {
+  const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState("");
+  const fileInputRef = useRef(null);
+
+  // Handle file selection
+  const handleFileUpload = (event) => {
+    const selectedFile = event.target.files[0];
+    if (!selectedFile) return;
+
+    if (
+      selectedFile.type ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      selectedFile.type === "application/vnd.ms-excel"
+    ) {
+      setFile(selectedFile);
+      setFileName(selectedFile.name);
+    } else {
+      alert("Please upload a valid Excel file (.xlsx or .xls)");
+      setFile(null);
+      setFileName("");
+    }
+  };
+
+  // Handle drag-drop upload
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const droppedFile = e.dataTransfer.files[0];
+    if (!droppedFile) return;
+
+    setFile(droppedFile);
+    setFileName(droppedFile.name);
+  };
+
+  const handleDragOver = (e) => e.preventDefault();
+
+  // ✅ Download simulated PPT
+  const handleDownload = () => {
+    if (!file) {
+      alert("Upload an Excel file first!");
+      return;
+    }
+    const blob = new Blob(
+      [`This is a simulated PPTX converted from ${fileName}`],
+      { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName.replace(/\.(xlsx|xls)$/i, ".pptx");
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="dashboard">
       {/* Sidebar */}
@@ -16,7 +69,7 @@ export default function ExcelToPPT() {
           </div>
         </div>
         <nav>
-          <Link to="/" className="active">
+          <Link to="/dashboard" className="active">
             <i className="fa-solid fa-house"></i> Dashboard
           </Link>
           <Link to="/conversion">
@@ -48,19 +101,33 @@ export default function ExcelToPPT() {
             <div className="main-cards">
               <section className="card">
                 <h2>Upload Your Excel File</h2>
-                <div className="file-upload">
+                <div
+                  className="file-upload"
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onClick={() => fileInputRef.current.click()}
+                >
                   <div className="upload-area">
                     <i className="fa-solid fa-upload upload-icon"></i>
-                    <p>
-                      Drop your Excel file here or{" "}
-                      <span className="browse">browse</span>
-                    </p>
+                    {file ? (
+                      <p>
+                        <strong>{fileName}</strong> loaded
+                      </p>
+                    ) : (
+                      <p>
+                        Drop your Excel file here or{" "}
+                        <span className="browse">browse</span>
+                      </p>
+                    )}
                     <small>Supports .xlsx and .xls up to 50MB</small>
                   </div>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     className="file-input"
                     accept=".xlsx,.xls"
+                    style={{ display: "none" }}
+                    onChange={handleFileUpload}
                   />
                 </div>
 
@@ -77,6 +144,13 @@ export default function ExcelToPPT() {
                     <p>Preserves table formatting and structure</p>
                   </div>
                 </div>
+
+                {/* ✅ Download button */}
+                {file && (
+                  <button className="download-btn" onClick={handleDownload}>
+                    Download as PPTX
+                  </button>
+                )}
               </section>
 
               {/* Customize Presentation */}

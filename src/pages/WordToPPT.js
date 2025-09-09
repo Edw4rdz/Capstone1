@@ -17,7 +17,7 @@ export default function WordToPPT() {
         </div>
         <nav>
           {/* Use <Link> if React Router is installed, or <a> if static */}
-          <Link to="/" className="active">
+          <Link to="/dashboard" className="active">
             <i className="fa-solid fa-house"></i> Dashboard
           </Link>
           <Link to="/conversion">

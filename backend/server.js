@@ -32,10 +32,11 @@ app.get("/users", (req, res) => {
 
 // Register route
 app.post("/register", (req, res) => {
-  const { name, email, password } = req.body;
-  db.query(
-    "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-    [name, email, password],
+ const { name, email, password } = req.body;
+db.query(
+  "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+  [fullName, email, password],
+
     (err) => {
       if (err) return res.status(500).json(err);
       res.json({ message: "✅ User registered successfully!" });

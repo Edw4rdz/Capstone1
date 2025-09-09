@@ -6,10 +6,40 @@ import signupImg from "../assets/signupImg.jpg";
 import "./signup.css";
 
 export default function Signup() {
+  // State for form inputs
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+
+  // Handle form submit
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await axios.post("http://localhost:5000/register", {
+  fullName,
+  email,
+  password,
+});
+
+      if (res.data.success) {
+        setMessage("✅ Account created successfully! You can now log in.");
+        setFullName("");
+        setEmail("");
+        setPassword("");
+      } else {
+        setMessage("⚠️ " + res.data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("❌ Error connecting to server.");
+    }
+  };
+
   return (
     <div className="signup-page">
-      <div className="signup-container">   {/* must match CSS */}
-        
+      <div className="signup-container">
         {/* LEFT SIDE IMAGE */}
         <div className="cover">
           <img src={signupImg} alt="Signup background" />
@@ -25,24 +55,47 @@ export default function Signup() {
             <div className="signup-form">
               <h2 className="title">Sign Up</h2>
 
-              <div className="input-box">
-                <i><FaUser /></i>
-                <input type="text" placeholder="Full Name" />
-              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="input-box">
+                  <i><FaUser /></i>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <div className="input-box">
-                <i><FaEnvelope /></i>
-                <input type="email" placeholder="Email Address" />
-              </div>
+                <div className="input-box">
+                  <i><FaEnvelope /></i>
+                  <input
+                    type="email"
+                    placeholder="Email Address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <div className="input-box">
-                <i><FaLock /></i>
-                <input type="password" placeholder="Password" />
-              </div>
+                <div className="input-box">
+                  <i><FaLock /></i>
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <div className="button">
-                <input type="button" value="Register" />
-              </div>
+                <div className="button">
+                  <input type="submit" value="Register" />
+                </div>
+              </form>
+
+              {/* Show messages */}
+              {message && <p className="message">{message}</p>}
 
               <p className="sign-up-text">
                 Already have an account? <Link to="/login">Login now</Link>

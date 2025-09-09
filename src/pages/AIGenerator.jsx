@@ -18,7 +18,7 @@ export default function AIGenerator() {
         </div>
 
         <nav className="ai-nav">
-          <Link to="/" className="active">
+          <Link to="/dashboard" className="active">
             <i className="fa fa-home"></i> Dashboard
           </Link>
           <Link to="/conversion">

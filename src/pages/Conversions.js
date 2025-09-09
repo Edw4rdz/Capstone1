@@ -15,7 +15,7 @@ export default function Conversions() {
           </div>
         </div>
         <nav>
-          <Link to="/">
+          <Link to="/dashboard">
             <i className="fa-solid fa-house"></i> Dashboard
           </Link>
           <Link to="/conversion" className="active">

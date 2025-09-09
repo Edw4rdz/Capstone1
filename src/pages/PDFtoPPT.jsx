@@ -1,9 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import "./pdftoppt.css";
 
 export default function PDFToPPT() {
   const [slides, setSlides] = useState(15);
+  const [file, setFile] = useState(null);
+  const fileInputRef = useRef(null); // ✅ useRef instead of getElementById
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile && selectedFile.type === "application/pdf") {
+      setFile(selectedFile);
+    } else {
+      alert("Please upload a valid PDF file");
+      setFile(null);
+    }
+  };
+
+  const handleUpload = () => {
+    if (!file) {
+      alert("Please select a PDF first");
+      return;
+    }
+
+    // For now, just show an alert instead of uploading
+    alert(`Selected PDF: ${file.name}\nSlides: ${slides}`);
+  };
 
   return (
     <div className="pdftoppt-page">
@@ -17,7 +39,7 @@ export default function PDFToPPT() {
           </div>
         </div>
         <nav>
-          <Link to="/" className="active">
+          <Link to="/dashboard" className="active">
             <i className="fa fa-home"></i> Dashboard
           </Link>
           <Link to="/conversion">
@@ -37,7 +59,10 @@ export default function PDFToPPT() {
             <div className="header-icon">📄</div>
             <div>
               <h1>PDF to PPT Converter</h1>
-              <p>Transform your PDF documents into editable PowerPoint presentations</p>
+              <p>
+                Transform your PDF documents into editable PowerPoint
+                presentations
+              </p>
             </div>
           </div>
 
@@ -45,26 +70,44 @@ export default function PDFToPPT() {
           <div className="content-grid">
             {/* Left Column */}
             <div className="left">
-              {/* Upload Card */}
+              {/* File Upload Card */}
               <div className="card file-upload">
                 <h2>Upload Your PDF</h2>
                 <div className="upload-area">
                   <div className="upload-icon">⬆</div>
                   <h3>
-                    Drop your PDF here, or <span className="browse">browse</span>
+                    Drop your PDF here, or{" "}
+                    <span
+                      className="browse"
+                      onClick={() => fileInputRef.current.click()} // ✅ trigger via ref
+                    >
+                      browse
+                    </span>
                   </h3>
-                  <p>Supports PDF files up to 50MB</p>
-                  <input type="file" className="file-input" accept=".pdf" />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="file-input"
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
+                  />
+                  {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
-                <div className="requirements">
-                  <h4>Upload Requirements</h4>
-                  <ul>
-                    <li>PDF files only</li>
-                    <li>Maximum file size: 50MB</li>
-                    <li>Text-based PDFs work best</li>
-                    <li>Scanned PDFs may have limited text extraction</li>
-                  </ul>
-                </div>
+                <button onClick={handleUpload} className="upload-btn">
+                  Convert to PPT
+                </button>
+              </div>
+
+              {/* Upload Requirements */}
+              <div className="requirements">
+                <h4>Upload Requirements</h4>
+                <ul>
+                  <li>PDF files only</li>
+                  <li>Maximum file size: 50MB</li>
+                  <li>Text-based PDFs work best</li>
+                  <li>Scanned PDFs may have limited text extraction</li>
+                </ul>
               </div>
 
               {/* Customize Card */}
@@ -81,14 +124,6 @@ export default function PDFToPPT() {
                     onChange={(e) => setSlides(e.target.value)}
                   />
                   <span id="slide-count">{slides} slides</span>
-                </div>
-                <div className="style-box">
-                  <p className="section-label">Presentation Style</p>
-                  <div className="style-card">
-                    <strong>Professional</strong>
-                    <br />
-                    <small>Clean, business-focused design</small>
-                  </div>
                 </div>
               </div>
             </div>
