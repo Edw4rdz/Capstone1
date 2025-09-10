@@ -70,7 +70,47 @@ body {
 .dashboard .sidebar nav a:hover,
 .dashboard .sidebar nav a.active {
   background: #aa729d;
+  border-left: 4px solid #3b5673;
   color: #fff;
+}
+/* Logout Button */
+.bottom-links {
+  margin-top: auto; /* Pushes logout to the bottom */
+  text-align: center; /* Centers the logout button */
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centers content horizontally */
+  gap: 8px;
+  padding: 12px 20px;
+  color: #d1d5db;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s;
+}
+
+.logout-btn:hover {
+  background: #aa729d;
+  color: #fff;
+}
+
+.logout-btn .icon {
+  margin-right: 8px;
+}
+
+.logout-btn .spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Main Content */

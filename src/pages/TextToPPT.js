@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Added useNavigate for logout
+import { FaSignOutAlt, FaUpload } from "react-icons/fa"; // Added icons for logout and upload
 import "./texttoppt.css"; // keep your existing CSS
 import "./Dashboard"; // Sidebar + Global
 
@@ -8,6 +9,8 @@ export default function TextToPPT() {
   const [fileName, setFileName] = useState("");
   const [slides, setSlides] = useState(8);
   const fileInputRef = useRef(null);
+  const navigate = useNavigate(); // For logout navigation
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // File upload handlers
   const handleFileUpload = (event) => {
@@ -48,27 +51,54 @@ export default function TextToPPT() {
     URL.revokeObjectURL(url);
   };
 
+  const handleLogout = () => {
+    const confirmLogout = window.confirm("Are you sure you want to log out?");
+    if (!confirmLogout) return;
+
+    setLoggingOut(true);
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("user");
+
+    setTimeout(() => {
+      navigate("/login");
+    }, 1200);
+  };
+
   return (
     <div className="dashboard">
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="logo">
-          <i className="fa-solid fa-sliders"></i>
-          <div>
-            <h2>PPT Tools</h2>
-            <p>Convert &amp; Generate</p>
+      <aside className="ai-sidebar">
+        <div className="ai-logo">
+          <i className="fa fa-magic"></i>
+          <div className="logo-text">
+            <h2>SLIDE-IT</h2>
+            <p>Convert & Generate</p>
           </div>
         </div>
-        <nav>
-          <Link to="/dashboard" className="active">
-            <i className="fa-solid fa-house"></i> Dashboard
-          </Link>
-          <Link to="/conversion">
-            <i className="fa-solid fa-clock-rotate-left"></i> Conversions
-          </Link>
-          <Link to="/settings">
-            <i className="fa-solid fa-gear"></i> Settings
-          </Link>
+
+        <nav className="ai-nav">
+          <div className="top-links">
+            <Link to="/dashboard" className="active">
+              <i className="fa fa-home"></i> Dashboard
+            </Link>
+            <Link to="/conversion">
+              <i className="fa fa-history"></i> Conversions
+            </Link>
+            <Link to="/settings">
+              <i className="fa fa-cog"></i> Settings
+            </Link>
+            <Link to="/uploadTemplate" className="upload-btn">
+              <FaUpload className="icon" /> Upload Template
+            </Link>
+          </div>
+
+          {/* Logout at bottom */}
+          <div className="bottom-links">
+            <div className="logout-btn" onClick={handleLogout}>
+              <FaSignOutAlt className="icon" /> Logout
+              {loggingOut && <div className="spinner-small"></div>}
+            </div>
+          </div>
         </nav>
       </aside>
 

@@ -1,33 +1,62 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import "./ai-generator.css";
-import "font-awesome/css/font-awesome.min.css"; // Ensure Font Awesome is imported
+import "font-awesome/css/font-awesome.min.css";
 
 export default function AIGenerator() {
   const [slides, setSlides] = useState(10);
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = () => {
+    const confirmLogout = window.confirm("Are you sure you want to log out?");
+    if (!confirmLogout) return;
+
+    setLoggingOut(true);
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("user");
+
+    setTimeout(() => {
+      navigate("/login");
+    }, 1200);
+  };
 
   return (
     <div className="ai-dashboard">
       {/* Sidebar */}
       <aside className="ai-sidebar">
         <div className="ai-logo">
-          <i className="fa fa-magic"></i> {/* Corrected to valid Font Awesome class */}
-          <div>
+          <i className="fa fa-magic"></i>
+          <div className="logo-text">
             <h2>SLIDE-IT</h2>
             <p>Convert & Generate</p>
           </div>
         </div>
 
         <nav className="ai-nav">
-          <Link to="/dashboard" className="active">
-            <i className="fa fa-home"></i> Dashboard
-          </Link>
-          <Link to="/conversion">
-            <i className="fa fa-history"></i> Conversions
-          </Link>
-          <Link to="/settings">
-            <i className="fa fa-cog"></i> Settings
-          </Link>
+          <div className="top-links">
+            <Link to="/dashboard" className="active">
+              <i className="fa fa-home"></i> Dashboard
+            </Link>
+            <Link to="/conversion">
+              <i className="fa fa-history"></i> Conversions
+            </Link>
+            <Link to="/settings">
+              <i className="fa fa-cog"></i> Settings
+            </Link>
+            <Link to="/uploadTemplate" className="upload-btn">
+              <FaUpload className="icon" /> Upload Template
+            </Link>
+          </div>
+
+          {/* Logout at bottom */}
+          <div className="bottom-links">
+            <div className="logout-btn" onClick={handleLogout}>
+              <FaSignOutAlt className="icon" /> Logout
+              {loggingOut && <div className="spinner-small"></div>}
+            </div>
+          </div>
         </nav>
       </aside>
 

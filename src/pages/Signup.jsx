@@ -9,6 +9,7 @@ export default function Signup() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(""); // State for error messages
   const navigate = useNavigate();
@@ -121,7 +122,16 @@ export default function Signup() {
                   disabled={loading}
                 />
               </div>
-
+              
+              <div className="show-password">
+              <input
+                type="checkbox"
+                id="showPassword"
+                onChange={() => setShowPassword(!showPassword)}
+                disabled={loading}
+              />
+              <label htmlFor="showPassword"> Show Password</label>
+            </div>
               <div className="button">
                 <input
                   type="button"
