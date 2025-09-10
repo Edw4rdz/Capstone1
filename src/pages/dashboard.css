@@ -28,13 +28,26 @@ body {
   left: 0;
   width: 230px;
   height: 100vh;
-  background: #1f2937;
+  background: #6D4FC2;
   color: #fff;
   padding: 24px 0;
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 8px rgba(0,0,0,0.08);
 }
+/* Upload Template Button */
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  color: white;
+  text-decoration: none;
+  margin-top: 10px;
+  transition: background-color 0.2s;
+}
+
 
 .dashboard .sidebar .logo {
   display: flex;
@@ -56,7 +69,7 @@ body {
 
 .dashboard .sidebar nav a:hover,
 .dashboard .sidebar nav a.active {
-  background: #374151;
+  background: #aa729d;
   color: #fff;
 }
 
@@ -92,7 +105,7 @@ body {
 }
 
 .dashboard .header h1 span {
-  color: #ef4444;
+  color: #945adb;
 }
 
 .dashboard .header p {
@@ -156,7 +169,7 @@ body {
 .dashboard .tool-icon.plus { background: #8b5cf6; }   /* Purple for AI */
 .dashboard .tool-icon.pdf { background: #ef4444; }    /* Red for PDF */
 .dashboard .tool-icon.word { background: #2563eb; }   /* Blue for Word */
-.dashboard .tool-icon.text { background: #10b981; }   /* Green for Text */
+.dashboard .tool-icon.text { background: #e9eb7b; }   /* Green for Text */
 .dashboard .tool-icon.excel { background: #22c55e; }  /* Bright green for Excel */
 
 .dashboard .tool-title {

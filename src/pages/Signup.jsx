@@ -1,46 +1,79 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { FaEnvelope, FaLock, FaUser } from "react-icons/fa";
+import { Link, useNavigate } from "react-router-dom";
+import { FaEnvelope, FaLock, FaUser } from "react-icons/fa"; // Removed FaUpload
 import axios from "axios";
 import signupImg from "../assets/signupImg.jpg";
 import "./signup.css";
 
 export default function Signup() {
-  // State for form inputs
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(""); // State for error messages
+  const navigate = useNavigate();
 
-  // Handle form submit
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const validateForm = () => {
+    if (!fullName.trim()) return "Full name is required.";
+    if (!email.trim()) return "Email is required.";
+    if (!/\S+@\S+\.\S+/.test(email)) return "Please enter a valid email.";
+    if (!password) return "Password is required.";
+    if (password.length < 6) return "Password must be at least 6 characters.";
+    return "";
+  };
 
+  const handleRegister = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError(""); // Clear previous errors
     try {
-      const res = await axios.post("http://localhost:5000/register", {
-  fullName,
-  email,
-  password,
-});
+      const response = await axios.post("http://localhost:5000/register", {
+        fullName,
+        email,
+        password,
+      });
 
-      if (res.data.success) {
-        setMessage("✅ Account created successfully! You can now log in.");
-        setFullName("");
-        setEmail("");
-        setPassword("");
+      console.log("Response:", response.data);
+      const data = response.data;
+
+      if (data.success) {
+        alert(data.message || "✅ Account created successfully!");
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        } else {
+          console.warn("No user data returned, storing minimal data");
+          localStorage.setItem("user", JSON.stringify({ name: fullName, email }));
+        }
+        navigate("/dashboard");
       } else {
-        setMessage("⚠️ " + res.data.message);
+        setError(data.message || "❌ Signup failed: Unknown error");
       }
-    } catch (err) {
-      console.error(err);
-      setMessage("❌ Error connecting to server.");
+    } catch (error) {
+      console.error("❌ Signup error:", error);
+      let errorMessage = "An error occurred. Please try again.";
+      if (error.response?.status === 404) {
+        errorMessage = "Server endpoint not found. Ensure the backend is running at http://localhost:5000.";
+      } else if (error.response?.status === 401) {
+        errorMessage = error.response.data?.message || "Unauthorized. Check your credentials.";
+      } else if (error.code === "ECONNABORTED") {
+        errorMessage = "Server timed out. Please try again.";
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response.data?.message || "Invalid input.";
+      }
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="signup-page">
       <div className="signup-container">
-        {/* LEFT SIDE IMAGE */}
         <div className="cover">
           <img src={signupImg} alt="Signup background" />
           <div className="text">
@@ -49,53 +82,54 @@ export default function Signup() {
           </div>
         </div>
 
-        {/* RIGHT SIDE FORM */}
         <div className="forms">
           <div className="form-content">
             <div className="signup-form">
               <h2 className="title">Sign Up</h2>
 
-              <form onSubmit={handleSubmit}>
-                <div className="input-box">
-                  <i><FaUser /></i>
-                  <input
-                    type="text"
-                    placeholder="Full Name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                  />
-                </div>
+              {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
 
-                <div className="input-box">
-                  <i><FaEnvelope /></i>
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="input-box">
+                <i><FaUser /></i>
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
 
-                <div className="input-box">
-                  <i><FaLock /></i>
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="input-box">
+                <i><FaEnvelope /></i>
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
 
-                <div className="button">
-                  <input type="submit" value="Register" />
-                </div>
-              </form>
+              <div className="input-box">
+                <i><FaLock /></i>
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
 
-              {/* Show messages */}
-              {message && <p className="message">{message}</p>}
+              <div className="button">
+                <input
+                  type="button"
+                  value={loading ? "Registering..." : "Register"}
+                  onClick={handleRegister}
+                  disabled={loading}
+                />
+              </div>
 
               <p className="sign-up-text">
                 Already have an account? <Link to="/login">Login now</Link>

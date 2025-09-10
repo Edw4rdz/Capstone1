@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import "./ai-generator.css";
+import "font-awesome/css/font-awesome.min.css"; // Ensure Font Awesome is imported
 
 export default function AIGenerator() {
   const [slides, setSlides] = useState(10);
@@ -10,9 +11,9 @@ export default function AIGenerator() {
       {/* Sidebar */}
       <aside className="ai-sidebar">
         <div className="ai-logo">
-          <i className="fa-solid fa-sliders"></i>
+          <i className="fa fa-magic"></i> {/* Corrected to valid Font Awesome class */}
           <div>
-            <h2>PPT Tools</h2>
+            <h2>SLIDE-IT</h2>
             <p>Convert & Generate</p>
           </div>
         </div>

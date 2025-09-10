@@ -1,0 +1,47 @@
+.upload-template-page {
+  padding: 30px;
+}
+
+.upload-template-page h2 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.upload-card {
+  background: #f3f4f6;
+  padding: 20px;
+  border-radius: 10px;
+  max-width: 500px;
+}
+
+.upload-card input[type="file"] {
+  margin-bottom: 15px;
+}
+
+.upload-card .preview {
+  margin-bottom: 15px;
+}
+
+.upload-card button {
+  padding: 10px 20px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.upload-card button:hover {
+  background-color: #4338ca;
+}
+
+.upload-card button:disabled {
+  background-color: #a5b4fc;
+  cursor: not-allowed;
+}
+
+.message {
+  margin-top: 10px;
+  font-weight: 500;
+}
