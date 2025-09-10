@@ -1,4 +1,4 @@
-/* Global reset - Ensure consistency with dashboard */
+/* Global reset - Ensure consistency with dashboard wqweqw */
 * {
   margin: 0;
   padding: 0;
@@ -20,6 +20,18 @@ body {
   display: flex;
   min-height: 100vh;
   background-color: #f7f8fa;
+}
+
+.generateAI-btn {
+  background: #a830ba; /* Matches pdftoppt.css blue */
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 15px;
 }
 
 /* Sidebar */

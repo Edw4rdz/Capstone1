@@ -100,16 +100,15 @@ export default function PDFToPPT() {
               <div className="ai-card ai-card-top">
                 <h2>Upload Your PDF</h2>
                 <div className="uploadp-area">
-                  <div className="upload-icon">⬆</div>
+                  <div className="uploadp-icon">⬆</div>
                   <h3>
                     Drop your PDF here, or{" "}
-                    <span
-                      className="browse"
+                    <span className="browsep"
                       onClick={() => fileInputRef.current.click()}
-                    >
-                      browse
+                    >browse
                     </span>
                   </h3>
+                  <p>Supports .pdf files up to 25MB</p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -120,7 +119,7 @@ export default function PDFToPPT() {
                   />
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
-                <button onClick={handleUpload} className="upload-btn">
+                <button onClick={handleUpload} className="uploadp-btn">
                   Convert to PPT
                 </button>
               </div>

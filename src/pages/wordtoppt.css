@@ -237,7 +237,7 @@ body {
   margin-bottom: 6px;
 }
 
-.upload-area {
+.uploadw-area {
   border: 2px dashed #3b82f6; 
   border-radius: 12px;
   padding: 40px;
@@ -250,7 +250,7 @@ body {
   background: #eff6ff; 
 }
 
-.upload-icon {
+.uploadw-icon {
   font-size: 32px;
   color: #3b82f6; 
   margin-bottom: 12px;

@@ -126,19 +126,19 @@ export default function TextToPPT() {
                   onDragOver={handleDragOver}
                   onClick={() => fileInputRef.current.click()}
                 >
-                  <div className="upload-area">
-                    <div className="upload-icon">⬆</div>
+                  <div className="uploadt-area">
+                    <div className="uploadt-icon">⬆</div>
                     {fileContent ? (
                       <p>
                         <strong>{fileName}</strong> loaded
                       </p>
-                    ) : (
-                      <p>
+                    ) : 
+                      <h3>
                         Drop your .txt file here or{" "}
-                        <span className="browse">browse</span>
-                      </p>
-                    )}
-                    <small>Supports .txt files only</small>
+                        <button className="browse">browse</button>
+                      </h3>
+                    }
+                    <p>Supports .txt files up to 25MB</p>
                   </div>
                   <input
                     ref={fileInputRef}

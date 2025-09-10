@@ -101,8 +101,9 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  border-radius: 6px;
+  width: 100;
+  padding: 14px;
+  border-radius: 16px;
   color: white;
   text-decoration: none;
   margin-top: 10px;
@@ -246,7 +247,7 @@ body {
   background: #fee2e2;
 }
 
-.upload-icon {
+.uploadp-icon {
   font-size: 2rem;
   color: #ef4444;
   margin-bottom: 10px;
@@ -259,7 +260,7 @@ body {
   cursor: pointer;
 }
 
-.browse {   
+.browsep {   
   color: #ef4444;
   text-decoration: underline;
   cursor: pointer;

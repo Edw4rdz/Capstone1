@@ -137,8 +137,8 @@ export default function ExcelToPPT() {
                   onDragOver={handleDragOver}
                   onClick={() => fileInputRef.current.click()}
                 >
-                  <div className="upload-area">
-                    <i className="fa-solid fa-upload upload-icon"></i>
+                <div className="uploade-area">
+                  <div className="uploade-icon">⬆</div>
                     {file ? (
                       <p>
                         <strong>{fileName}</strong> loaded
@@ -149,7 +149,7 @@ export default function ExcelToPPT() {
                         <span className="browse">browse</span>
                       </p>
                     )}
-                    <small>Supports .xlsx and .xls up to 50MB</small>
+                    <p>Supports .xlsx and .xls up to 50MB</p>
                   </div>
                   <input
                     ref={fileInputRef}

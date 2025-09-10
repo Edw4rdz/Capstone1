@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaSignOutAlt, FaUpload } from "react-icons/fa";
+import { FaSignOutAlt, FaUpload, FaMagic } from "react-icons/fa";
 import "./ai-generator.css";
 import "font-awesome/css/font-awesome.min.css";
 
 export default function AIGenerator() {
   const [slides, setSlides] = useState(10);
+  const [topic, setTopic] = useState("");   // ✅ store user topic
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -20,6 +22,35 @@ export default function AIGenerator() {
     setTimeout(() => {
       navigate("/login");
     }, 1200);
+  };
+
+  // ✅ Trigger when user clicks "Generate Presentation"
+  const handleGenerate = async () => {
+    if (!topic.trim()) {
+      alert("Please enter a topic first!");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Example API call (replace with your backend endpoint)
+      const response = await fetch("http://localhost:5000/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, slides }),
+      });
+
+      const data = await response.json();
+      console.log("🎉 Generated Presentation:", data);
+
+      // For now just alert success
+      alert("✅ Presentation generated successfully!");
+    } catch (error) {
+      console.error("❌ Error generating presentation:", error);
+      alert("Something went wrong while generating your presentation.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -80,15 +111,37 @@ export default function AIGenerator() {
                 <h2>What's your presentation about?</h2>
                 <label className="ai-section-label">Presentation Topic</label>
                 <textarea
-                  placeholder="Describe your presentation topic in detail. Include key points, target audience, and any specific requirements..."
+                  placeholder="Describe your presentation topic in detail..."
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)} // ✅ bind state
                 ></textarea>
+
+                {/* Generate Button */}
+                <button
+                  className="generateAI-btn"
+                  onClick={handleGenerate}
+                  disabled={!topic.trim() || loading}
+                >
+                  {loading ? "Generating..." : <><FaMagic /> Generate Presentation</>}
+                </button>
+
                 <p className="ai-section-label">Quick examples:</p>
                 <div className="ai-tags">
-                  <span className="ai-tag">Climate Change Solutions</span>
-                  <span className="ai-tag">Digital Marketing Strategy 2024</span>
-                  <span className="ai-tag">Introduction to Machine Learning</span>
-                  <span className="ai-tag">Sustainable Business Practices</span>
-                  <span className="ai-tag">Remote Work Best Practices</span>
+                  <span className="ai-tag" onClick={() => setTopic("Climate Change Solutions")}>
+                    Climate Change Solutions
+                  </span>
+                  <span className="ai-tag" onClick={() => setTopic("Digital Marketing Strategy 2024")}>
+                    Digital Marketing Strategy 2024
+                  </span>
+                  <span className="ai-tag" onClick={() => setTopic("Introduction to Machine Learning")}>
+                    Introduction to Machine Learning
+                  </span>
+                  <span className="ai-tag" onClick={() => setTopic("Sustainable Business Practices")}>
+                    Sustainable Business Practices
+                  </span>
+                  <span className="ai-tag" onClick={() => setTopic("Remote Work Best Practices")}>
+                    Remote Work Best Practices
+                  </span>
                 </div>
               </div>
 

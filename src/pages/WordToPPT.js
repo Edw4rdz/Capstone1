@@ -85,10 +85,8 @@ export default function WordToPPT() {
             <div className="ai-left">
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Word Document</h2>
-                <div className="upload-area">
-                  <div className="upload-icon">
-                    <i className="fa-solid fa-upload"></i>
-                  </div>
+                <div className="uploadw-area">
+                  <div className="uploadw-icon">⬆</div>
                   <h3>
                     Drop your Word document here, or{" "}
                     <button className="browse">browse</button>
