@@ -2,19 +2,27 @@ import express from "express";
 import mysql from "mysql2/promise";
 import cors from "cors";
 import bcrypt from "bcrypt";
+import dotenv from "dotenv";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
+
+dotenv.config();
+console.log("DB_HOST:", process.env.DB_HOST);
+console.log("DB_USER:", process.env.DB_USER);
+console.log("DB_PASSWORD:", process.env.DB_PASSWORD ? "*****" : "Not set");
+console.log("DB_NAME:", process.env.DB_NAME);
 const app = express();
 
-// Enable CORS + JSON
+// Middleware
 app.use(cors({ origin: "http://localhost:3000" }));
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
 
-// Database connection
+// Database
 const db = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "slideit_db",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   queueLimit: 0,
 });
@@ -24,101 +32,115 @@ db.getConnection()
   .then(() => console.log("✅ Connected to MySQL!"))
   .catch((err) => console.error("❌ MySQL connection failed:", err.message));
 
-// Get all users
-app.get("/users", async (req, res) => {
-  try {
-    console.log("📥 Fetching users...");
-    const [rows] = await db.execute("SELECT user_id, name, email, created_at FROM users");
-    console.log("📊 Users fetched:", rows.length);
-    res.json(rows);
-  } catch (err) {
-    console.error("❌ Fetch users error:", err.message);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+// Gemini API
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-// Register route
+// ----------------- ROUTES -----------------
+
+// Register
 app.post("/register", async (req, res) => {
-  console.log("📥 Register request received:", req.body);
-  const { fullName, email, password } = req.body;
+  const { name, email, password } = req.body;
 
-  if (!fullName || !email || !password) {
-    return res.status(400).json({ success: false, message: "All fields are required." });
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: "All fields required." });
   }
 
   try {
-    console.log("🔍 Checking for existing email:", email);
+    // Check if email already exists
     const [existing] = await db.execute("SELECT email FROM users WHERE email = ?", [email]);
-    if (existing.length > 0) {
-      console.log("🚫 Email already exists:", email);
+    if (existing.length) {
       return res.status(400).json({ success: false, message: "Email already exists." });
     }
 
-    console.log("🔒 Hashing password...");
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password
+    const hashed = await bcrypt.hash(password, 10);
 
-    console.log("💾 Inserting new user...");
+    // Insert user
     const [result] = await db.execute(
       "INSERT INTO users (name, email, password, created_at) VALUES (?, ?, ?, NOW())",
-      [fullName, email, hashedPassword]
+      [name, email, hashed]
     );
 
-    console.log("📋 Fetching new user ID:", result.insertId);
-    const [userResult] = await db.execute(
+    // Fetch newly created user
+    const [user] = await db.execute(
       "SELECT user_id, name, email FROM users WHERE user_id = ?",
       [result.insertId]
     );
 
-    res.status(201).json({
-      success: true,
-      message: "✅ Account created successfully!",
-      user: userResult[0] || { name: fullName, email },
-    });
+    res.status(201).json({ success: true, user: user[0] });
   } catch (err) {
-    console.error("❌ Register error:", err.message);
-    res.status(500).json({ success: false, message: `Database error: ${err.message}` });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Login route
+// Login
 app.post("/login", async (req, res) => {
-  console.log("📥 Login request received for email:", req.body.email);
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ success: false, message: "Email and password are required." });
+    return res.status(400).json({ success: false, message: "Email/password required." });
   }
 
   try {
-    console.log("🔍 Searching for user with email:", email);
     const [users] = await db.execute("SELECT * FROM users WHERE email = ?", [email]);
-    if (users.length === 0) {
-      console.log("🚫 No user found for email:", email);
+
+    if (!users.length) {
       return res.status(401).json({ success: false, message: "Invalid email or password." });
     }
 
     const user = users[0];
-    console.log("🔑 Comparing password...");
     const match = await bcrypt.compare(password, user.password);
+
     if (!match) {
-      console.log("🚫 Password mismatch for email:", email);
       return res.status(401).json({ success: false, message: "Invalid email or password." });
     }
 
-    res.status(200).json({
+    res.json({
       success: true,
-      message: "✅ Login successful.",
-      user: { user_id: user.user_id, name: user.name, email: user.email },
+      user: {
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+      },
     });
   } catch (err) {
-    console.error("❌ Login error:", err.message);
-    res.status(500).json({ success: false, message: "Database error." });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Start server
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Backend running on http://localhost:${PORT}`);
-  console.log("📋 Available routes: /register (POST), /login (POST), /users (GET)");
+// Convert PDF to PPT
+app.post("/convert-pdf", async (req, res) => {
+  const { base64PDF, slides } = req.body;
+  if (!base64PDF || !slides) return res.status(400).json({ error: "Missing base64PDF or slides" });
+
+  try {
+    const prompt = `
+      Extract text from this PDF and organize into ${slides} slides.
+      Each slide: title (max 10 words) + 3-5 bullet points.
+      Return JSON array of objects with "title" and "bullets".
+    `;
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: "application/pdf", data: base64PDF } },
+          ],
+        },
+      ],
+      generationConfig: { responseMimeType: "application/json" },
+    });
+
+    const slideData = JSON.parse(result.response.text());
+    res.json(slideData);
+  } catch (err) {
+    res.status(500).json({ error: "Conversion failed: " + err.message });
+  }
 });
+
+// ----------------- START SERVER -----------------
+app.listen(process.env.PORT || 5000, () =>
+  console.log("🚀 Backend running on port", process.env.PORT || 5000)
+);

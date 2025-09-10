@@ -132,6 +132,7 @@ body {
   transition: background 0.3s, color 0.3s;
 }
 
+<<<<<<< HEAD
 .logout-btn:hover {
   background: #aa729d;
   color: #fff;
@@ -355,4 +356,16 @@ body {
   position: absolute;
   left: 0;
   color: #22c55e;
+=======
+  .features li::before {
+    content: "✔";
+    color: #28a745;
+    position: absolute;
+    left: 0;
+  }
+.upload-btn:disabled {
+  background-color: gray;
+  cursor: not-allowed;
+  opacity: 0.7;
+>>>>>>> e37fe12 (Convertion commit)
 }
