@@ -1,26 +1,18 @@
 import React, { useState, useRef } from "react";
-<<<<<<< HEAD
 import { Link, useNavigate } from "react-router-dom";
-import { FaSignOutAlt, FaUpload } from "react-icons/fa";
-=======
-import { Link } from "react-router-dom";
-import PptxGen from "pptxgenjs";  // v3.x
+import PptxGen from "pptxgenjs"; // v3.x
 import { convertPDF } from "../api"; // axios call to backend
->>>>>>> e37fe12 (Convertion commit)
+import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import "./pdftoppt.css";
 import "font-awesome/css/font-awesome.min.css";
 
 export default function PDFToPPT() {
   const [slides, setSlides] = useState(15);
   const [file, setFile] = useState(null);
-<<<<<<< HEAD
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
-=======
-  const [isLoading, setIsLoading] = useState(false);
-  const fileInputRef = useRef(null);
->>>>>>> e37fe12 (Convertion commit)
 
   // File selection
   const handleFileChange = (e) => {
@@ -39,11 +31,7 @@ export default function PDFToPPT() {
     if (file.size > 20 * 1024 * 1024)
       return alert("File too large (max 20MB)");
 
-<<<<<<< HEAD
-    alert(`Selected PDF: ${file.name}\nSlides: ${slides}`);
-=======
     setIsLoading(true);
-
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -60,6 +48,7 @@ export default function PDFToPPT() {
 
         slideData.forEach((slide) => {
           const pptSlide = pptx.addSlide();
+
           pptSlide.addText(slide.title, {
             x: 0.5,
             y: 0.5,
@@ -69,6 +58,7 @@ export default function PDFToPPT() {
             bold: true,
             color: "363636",
           });
+
           pptSlide.addText(slide.bullets.join("\n"), {
             x: 0.5,
             y: 1.5,
@@ -102,7 +92,6 @@ export default function PDFToPPT() {
     } finally {
       setIsLoading(false);
     }
->>>>>>> e37fe12 (Convertion commit)
   };
 
   const handleLogout = () => {
@@ -119,7 +108,6 @@ export default function PDFToPPT() {
   };
 
   return (
-<<<<<<< HEAD
     <div className="ai-dashboard">
       {/* Sidebar */}
       <aside className="ai-sidebar">
@@ -127,14 +115,6 @@ export default function PDFToPPT() {
           <i className="fa fa-magic"></i>
           <div className="logo-text">
             <h2>SLIDE-IT</h2>
-=======
-    <div className="pdftoppt-page">
-      <aside className="sidebar">
-        <div className="logo">
-          <i className="fa fa-sliders"></i>
-          <div>
-            <h2>PPT Tools</h2>
->>>>>>> e37fe12 (Convertion commit)
             <p>Convert & Generate</p>
           </div>
         </div>
@@ -155,7 +135,6 @@ export default function PDFToPPT() {
             </Link>
           </div>
 
-          {/* Logout at bottom */}
           <div className="bottom-links">
             <div className="logout-btn" onClick={handleLogout}>
               <FaSignOutAlt className="icon" /> Logout
@@ -164,7 +143,6 @@ export default function PDFToPPT() {
           </div>
         </nav>
       </aside>
-<<<<<<< HEAD
 
       {/* Main Content */}
       <main className="ai-main">
@@ -183,51 +161,35 @@ export default function PDFToPPT() {
             <div className="ai-left">
               {/* File Upload Card */}
               <div className="ai-card ai-card-top">
-=======
-      <main className="main">
-        <div className="container">
-          <div className="header">
-            <div className="header-icon">📄</div>
-            <div>
-              <h1>PDF to PPT Converter</h1>
-              <p>Transform your PDF documents into editable PowerPoint presentations</p>
-            </div>
-          </div>
-          <div className="content-grid">
-            <div className="left">
-              <div className="card file-upload">
->>>>>>> e37fe12 (Convertion commit)
                 <h2>Upload Your PDF</h2>
                 <div className="uploadp-area">
                   <div className="uploadp-icon">⬆</div>
                   <h3>
                     Drop your PDF here, or{" "}
-<<<<<<< HEAD
-                    <span className="browsep"
-                      onClick={() => fileInputRef.current.click()}
-                    >browse
-=======
                     <span
-                      className="browse"
+                      className="browsep"
                       onClick={() => fileInputRef.current.click()}
                     >
                       browse
->>>>>>> e37fe12 (Convertion commit)
                     </span>
                   </h3>
                   <p>Supports .pdf files up to 25MB</p>
                   <input
                     ref={fileInputRef}
                     type="file"
+                    className="file-input"
                     accept=".pdf"
                     onChange={handleFileChange}
                     style={{ display: "none" }}
                   />
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
-<<<<<<< HEAD
-                <button onClick={handleUpload} className="uploadp-btn">
-                  Convert to PPT
+                <button
+                  onClick={handleUpload}
+                  className="uploadp-btn"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Converting..." : "Convert to PPT"}
                 </button>
               </div>
 
@@ -244,33 +206,21 @@ export default function PDFToPPT() {
 
               {/* Customize Card */}
               <div className="ai-card">
-=======
-                <button
-                  onClick={handleUpload}
-                  className="upload-btn"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Converting..." : "Convert to PPT"}
-                </button>
-              </div>
-
-              <div className="card customize-card">
->>>>>>> e37fe12 (Convertion commit)
                 <h2>Customize Your Presentation</h2>
                 <div className="ai-slider-section">
                   <label htmlFor="slides">Number of Slides</label>
                   <input
                     type="range"
+                    id="slides"
                     min="5"
                     max="30"
                     value={slides}
                     onChange={(e) => setSlides(parseInt(e.target.value))}
                   />
-                  <span>{slides} slides</span>
+                  <span id="slide-count">{slides} slides</span>
                 </div>
               </div>
             </div>
-<<<<<<< HEAD
 
             {/* Right Column */}
             <div className="ai-right">
@@ -279,19 +229,16 @@ export default function PDFToPPT() {
                 <h3>How it works</h3>
                 <ol>
                   <li>
-                    <strong>Upload PDF</strong>
-                    <br />
-                    Select the PDF file you want to convert
+                    <strong>Upload PDF</strong> - Select the PDF file you want
+                    to convert
                   </li>
                   <li>
-                    <strong>Customize slides</strong>
-                    <br />
-                    Choose number of slides and presentation style
+                    <strong>Customize slides</strong> - Choose number of slides
+                    and presentation style
                   </li>
                   <li>
-                    <strong>Download PPT</strong>
-                    <br />
-                    Get your editable PowerPoint presentation
+                    <strong>Download PPT</strong> - Get your editable PowerPoint
+                    presentation
                   </li>
                 </ol>
               </div>
@@ -307,8 +254,6 @@ export default function PDFToPPT() {
                 </ul>
               </div>
             </div>
-=======
->>>>>>> e37fe12 (Convertion commit)
           </div>
         </div>
       </main>

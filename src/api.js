@@ -1,18 +1,17 @@
 import axios from "axios";
 
-// Base URL of your backend
 const API_BASE = "http://localhost:5000";
 
-// Convert PDF to slides via backend
-export const convertPDF = ({ base64PDF, slides }) => {
-  return axios.post(`${API_BASE}/convert-pdf`, { base64PDF, slides });
-};
+// --- Auth APIs ---
+export const registerUser = (data) =>
+  axios.post(`${API_BASE}/register`, data);
 
-// User authentication (if needed)
-export const loginUser = (credentials) => {
-  return axios.post(`${API_BASE}/login`, credentials);
-};
+export const loginUser = (data) =>
+  axios.post(`${API_BASE}/login`, data);
 
-export const registerUser = (userData) => {
-  return axios.post(`${API_BASE}/register`, userData);
-};
+// --- Conversion APIs ---
+export const convertPDF = (data) =>
+  axios.post(`${API_BASE}/convert-pdf`, data);
+
+export const convertWord = (data) =>
+  axios.post(`${API_BASE}/convert-word`, data);

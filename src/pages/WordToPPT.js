@@ -1,14 +1,111 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Added useNavigate for logout
-import { FaSignOutAlt, FaUpload } from "react-icons/fa"; // Added icons for logout and upload
+import React, { useState, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import PptxGen from "pptxgenjs";
+import { convertWord } from "../api"; // Axios call to your backend
+import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import "./wordtoppt.css";
-import "font-awesome/css/font-awesome.min.css"; // Ensure Font Awesome is imported
+import "font-awesome/css/font-awesome.min.css";
 
 export default function WordToPPT() {
-  const navigate = useNavigate(); // For logout navigation
+  const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [file, setFile] = useState(null); // Added state for file
+  const [file, setFile] = useState(null);
+  const [slides, setSlides] = useState(15);
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef(null);
 
+  // File selection
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (
+      selectedFile &&
+      (selectedFile.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        selectedFile.type === "application/msword")
+    ) {
+      setFile(selectedFile);
+    } else {
+      alert("Please upload a valid Word file (.docx or .doc)");
+      setFile(null);
+    }
+  };
+
+  // Upload Word to backend and generate PPT
+  const handleUpload = async () => {
+    if (!file) return alert("Please select a Word document first");
+    if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
+
+    setIsLoading(true);
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+
+    reader.onload = async () => {
+      const base64Word = reader.result.split(",")[1];
+
+      try {
+        const response = await convertWord({ base64Word, slides });
+        const slideData = response.data;
+
+        if (!Array.isArray(slideData)) {
+          const msg = response.data?.error || "Backend returned invalid data";
+          console.error("Invalid slide data:", slideData);
+          return alert("Conversion failed: " + msg);
+        }
+
+        // Generate PPT
+        const pptx = new PptxGen();
+        pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
+        pptx.layout = "A4";
+
+        slideData.forEach((slide) => {
+          const pptSlide = pptx.addSlide();
+          pptSlide.addText(slide.title, {
+            x: 0.5,
+            y: 0.5,
+            w: "90%",
+            h: 1,
+            fontSize: 24,
+            bold: true,
+            color: "363636",
+          });
+          pptSlide.addText(slide.bullets.join("\n"), {
+            x: 0.5,
+            y: 1.5,
+            w: "90%",
+            h: 6,
+            fontSize: 18,
+            bullet: true,
+            color: "363636",
+          });
+        });
+
+        // Download PPT
+        const blob = await pptx.write("blob");
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${file.name.replace(/\.(docx|doc)$/i, "")}_converted.pptx`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        alert("✅ Conversion successful! PPTX downloaded.");
+      } catch (err) {
+        console.error("Backend conversion error:", err);
+        const msg = err.response?.data?.error || err.message || "Unknown backend error";
+        alert("Conversion failed: " + msg);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    reader.onerror = () => {
+      alert("Failed to read Word file. Please try again.");
+      setIsLoading(false);
+    };
+  };
+
+  // Logout
   const handleLogout = () => {
     const confirmLogout = window.confirm("Are you sure you want to log out?");
     if (!confirmLogout) return;
@@ -17,18 +114,7 @@ export default function WordToPPT() {
     localStorage.removeItem("user");
     sessionStorage.removeItem("user");
 
-    setTimeout(() => {
-      navigate("/login");
-    }, 1200);
-  };
-
-  // Placeholder handler for the convert button
-  const handleUpload = () => {
-    if (!file) {
-      alert("Please select a Word document first");
-      return;
-    }
-    alert(`Selected Word document: ${file.name}`);
+    setTimeout(() => navigate("/login"), 1200);
   };
 
   return (
@@ -59,7 +145,6 @@ export default function WordToPPT() {
             </Link>
           </div>
 
-          {/* Logout at bottom */}
           <div className="bottom-links">
             <div className="logout-btn" onClick={handleLogout}>
               <FaSignOutAlt className="icon" /> Logout
@@ -72,86 +157,70 @@ export default function WordToPPT() {
       {/* Main Content */}
       <main className="ai-main">
         <div className="ai-container">
+          {/* Header */}
           <div className="ai-header">
-            <h1>Convert Word to PPT</h1>
+            <h1>Word to PPT Converter</h1>
             <p className="ai-subtitle">
-              Transform your Word documents into professional PowerPoint
-              presentations
+              Transform your Word documents into editable PowerPoint presentations
             </p>
           </div>
 
+          {/* Content */}
           <div className="ai-content">
-            {/* Left Column: Upload + Customization */}
             <div className="ai-left">
+              {/* Upload Card */}
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Word Document</h2>
-                <div className="uploadw-area">
-                  <div className="uploadw-icon">⬆</div>
+                <div className="uploadp-area">
+                  <div className="uploadp-icon">⬆</div>
                   <h3>
                     Drop your Word document here, or{" "}
-                    <button className="browse">browse</button>
+                    <span
+                      className="browsep"
+                      onClick={() => fileInputRef.current.click()}
+                    >
+                      browse
+                    </span>
                   </h3>
                   <p>Supports .docx and .doc files up to 25MB</p>
                   <input
+                    ref={fileInputRef}
                     type="file"
-                    accept=".docx,.doc"
                     className="file-input"
-                    onChange={(e) => {
-                      const selectedFile = e.target.files[0];
-                      if (selectedFile && (selectedFile.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || selectedFile.type === "application/msword")) {
-                        setFile(selectedFile);
-                      } else {
-                        alert("Please upload a valid Word file (.docx or .doc)");
-                        setFile(null);
-                      }
-                    }}
+                    accept=".docx,.doc"
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
                   />
+                  {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
-                <button onClick={handleUpload} className="convertw-btn">
-                  Convert to PPT
+                <button
+                  onClick={handleUpload}
+                  className="uploadp-btn"
+                  disabled={isLoading || !file}
+                >
+                  {isLoading ? "Converting..." : "Convert to PPT"}
                 </button>
               </div>
 
-              <div className="ai-card">
-                <h4>For Best Results</h4>
-                <ul>
-                  <li>Use headings (H1, H2, H3) to structure content</li>
-                  <li>Each heading can become a new slide</li>
-                  <li>Include high-quality images if needed</li>
-                  <li>Tables and lists will be preserved</li>
-                </ul>
-              </div>
-
+              {/* Customize Card */}
               <div className="ai-card">
                 <h2>Customize Your Presentation</h2>
                 <div className="ai-slider-section">
-                  <label>Number of Slides</label>
-                  <input type="range" min="5" max="25" defaultValue="12" />
-                  <span>12 slides</span>
-                </div>
-                <div className="ai-style-box">
-                  <label>Presentation Style</label>
-                  <select>
-                    <option>Professional</option>
-                    <option>Academic</option>
-                    <option>Business</option>
-                    <option>Creative</option>
-                  </select>
-                </div>
-
-                <div className="ai-info-box">
-                  <h3>Smart Document Analysis</h3>
-                  <ul>
-                    <li>Smart Heading Detection</li>
-                    <li>Auto Slide Transitions</li>
-                    <li>Content Optimization</li>
-                    <li>Style Preservation+</li>
-                  </ul>
+                  <label htmlFor="slides">Number of Slides</label>
+                  <input
+                    type="range"
+                    id="slides"
+                    min="5"
+                    max="25"
+                    value={slides}
+                    onChange={(e) => setSlides(parseInt(e.target.value))}
+                  />
+                  <span id="slide-count">{slides} slides</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Features & Guidelines */}
+            {/* Right Column */}
             <div className="ai-right">
               <div className="ai-info-box">
                 <h3>Smart Conversion</h3>
@@ -162,26 +231,6 @@ export default function WordToPPT() {
                   <li>Imports images and graphics</li>
                   <li>Creates professional layouts</li>
                 </ul>
-              </div>
-
-              <div className="ai-info-box">
-                <h3>Document Structure Tips</h3>
-                <div>
-                  <h4>Headings</h4>
-                  <p>Use H1 for main topics, H2 for subtopics</p>
-                </div>
-                <div>
-                  <h4>Content</h4>
-                  <p>Keep paragraphs concise for better slides</p>
-                </div>
-                <div>
-                  <h4>Images</h4>
-                  <p>Use high-resolution images (300 DPI+)</p>
-                </div>
-                <div>
-                  <h4>Tables</h4>
-                  <p>Simple tables convert better</p>
-                </div>
               </div>
 
               <div className="ai-info-box">

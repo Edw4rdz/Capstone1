@@ -4,6 +4,7 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import mammoth from "mammoth";
 
 
 dotenv.config();
@@ -137,6 +138,59 @@ app.post("/convert-pdf", async (req, res) => {
     res.json(slideData);
   } catch (err) {
     res.status(500).json({ error: "Conversion failed: " + err.message });
+  }
+});
+// --- CONVERT WORD TO PPT ---
+app.post("/convert-word", async (req, res) => {
+  const { base64Word, slides } = req.body;
+  if (!base64Word || !slides) {
+    return res.status(400).json({ error: "Missing Word file or slides" });
+  }
+
+  try {
+    // Decode base64 Word → Buffer
+    const buffer = Buffer.from(base64Word, "base64");
+
+    // Extract text using Mammoth
+    const { value: text } = await mammoth.extractRawText({ buffer });
+
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({ error: "Could not extract text from Word file" });
+    }
+
+    // Build the prompt for Gemini
+    const prompt = `
+      Organize the following text into ${slides} slides.
+      Each slide must have:
+      - A title (max 10 words)
+      - 3–5 bullet points
+      Text:
+      ${text}
+      Return ONLY JSON in this format:
+      [
+        { "title": "Slide 1 title", "bullets": ["point1", "point2"] },
+        { "title": "Slide 2 title", "bullets": ["point1", "point2"] }
+      ]
+    `;
+
+    // Send ONLY extracted text to Gemini (❌ no inlineData here!)
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    let slideData = [];
+    try {
+      slideData = JSON.parse(result.response.text());
+    } catch (err) {
+      console.error("JSON parse failed:", err, result.response.text());
+      return res.status(500).json({ error: "Gemini returned invalid JSON" });
+    }
+
+    res.json(slideData);
+  } catch (err) {
+    console.error("Word Conversion failed:", err);
+    res.status(500).json({ error: "Word Conversion failed: " + err.message });
   }
 });
 
