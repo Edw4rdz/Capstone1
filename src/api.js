@@ -15,3 +15,24 @@ export const convertPDF = (data) =>
 
 export const convertWord = (data) =>
   axios.post(`${API_BASE}/convert-word`, data);
+
+// ------------------ AI Generator ------------------ //
+export const generateSlides = async ({ topic, slides }) => {
+  return await axios.post(`${API_BASE}/ai-generator`, { topic, slides });
+};
+
+export const downloadPPTX = async (slides) => {
+  const response = await axios.post(
+    `${API_BASE}/download-pptx`,
+    { slides },
+    { responseType: "blob" }
+  );
+
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "presentation.pptx");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};

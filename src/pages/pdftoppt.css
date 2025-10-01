@@ -97,7 +97,7 @@ body {
 }
 
 /* Upload Template Button */
-.upload-btn {
+.uploadp-btn {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -110,7 +110,7 @@ body {
   transition: background-color 0.2s;
 }
 
-.upload-btn .icon {
+.uploadp-btn .icon {
   margin-right: 8px;
 }
 
@@ -175,19 +175,23 @@ body {
 }
 
 /* Header */
-.ai-header h1 {
-  font-size: 22px;
-  margin-bottom: 10px;
+.headerp {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
 }
 
-.ai-subtitle {
-  margin-bottom: 25px;
-  display: inline-block;
-  background: #fff3cd;
-  color: #b45309;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 14px;
+.headerp-icon {
+  width: 50px;
+  height: 50px;
+  background: #ef4444;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  border-radius: 10px;
 }
 
 /* Content */
@@ -285,7 +289,7 @@ body {
   transition: background 0.3s;
 }
 
-.upload-btn:hover {
+.uploadp-btn:hover {
   background: #dc2626;
 }
 

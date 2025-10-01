@@ -118,7 +118,7 @@ export default function ExcelToPPT() {
           <header className="header">
             <div className="header-icon">XLSX</div>
             <div>
-              <h1>Convert Excel to PPT</h1>
+              <h1>Excel to PPT Converter</h1>
               <p>
                 Transform your Excel data and charts into professional
                 PowerPoint presentations
@@ -149,7 +149,7 @@ export default function ExcelToPPT() {
                         <span className="browse">browse</span>
                       </p>
                     )}
-                    <p>Supports .xlsx and .xls up to 50MB</p>
+                    <p>Supports .xlsx and .xls up to 25MB</p>
                   </div>
                   <input
                     ref={fileInputRef}
@@ -164,12 +164,10 @@ export default function ExcelToPPT() {
                 {/* Excel Features */}
                 <div className="features-grid">
                   <div className="feature-card charts">
-                    <i className="fa-solid fa-chart-column"></i>
                     <h4>Charts &amp; Graphs</h4>
                     <p>Automatically converts Excel charts to PowerPoint</p>
                   </div>
                   <div className="feature-card tables">
-                    <i className="fa-solid fa-table"></i>
                     <h4>Data Tables</h4>
                     <p>Preserves table formatting and structure</p>
                   </div>

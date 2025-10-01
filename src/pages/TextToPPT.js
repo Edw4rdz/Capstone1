@@ -106,14 +106,17 @@ export default function TextToPPT() {
       <main className="main">
         <div className="container">
           {/* ✅ Header */}
-          <header className="header">
-            <div className="header-icon">TXT</div>
+          <header className="headert">
+            <div className="headert-icon">TXT</div>
             <div>
-              <h1>Convert Text to PPT</h1>
-              <p>Transform your plain text into engaging PowerPoint presentations</p>
+              <h1>Text to PPT Converter</h1>
+              <p>
+                Transform your plain text into engaging PowerPoint presentations
+                </p>
             </div>
           </header>
-
+          
+          {/* Content */}
           <div className="content-grid">
             <div className="main-cards">
               {/* File Upload Card */}
@@ -135,7 +138,7 @@ export default function TextToPPT() {
                     ) : 
                       <h3>
                         Drop your .txt file here or{" "}
-                        <button className="browse">browse</button>
+                        <button className="browset"><h2>browse</h2></button>
                       </h3>
                     }
                     <p>Supports .txt files up to 25MB</p>
@@ -148,18 +151,6 @@ export default function TextToPPT() {
                     onChange={handleFileUpload}
                   />
                 </div>
-
-                <div className="info-row">
-                  <span>{fileContent.length} characters</span>
-                  <span>Estimated slides: {slides}</span>
-                </div>
-
-                {/* ✅ Download button */}
-                {fileContent && (
-                  <button className="download-btn" onClick={handleDownload}>
-                    Download TXT
-                  </button>
-                )}
               </section>
 
               {/* Customize Presentation Card */}
@@ -210,7 +201,7 @@ export default function TextToPPT() {
                   </div>
                 </div>
 
-                <button className="convert-btn">Convert to Presentation</button>
+                <button className="convertt-btn">Convert to Presentation</button>
               </section>
             </div>
 

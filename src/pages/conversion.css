@@ -1,143 +1,132 @@
-/* Basic Reset */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: 'Inter', sans-serif;
-  display: flex;
-  background: #f4f4f4;
-}
-
-/* Sidebar */
-.sidebar {
-  width: 250px;
-  height: 100vh;
-  background: #1f2937;
-  color: white;
-  padding: 20px;
-  position: fixed;
-}
-
-.sidebar .logo {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 40px;
-  align-items: center;
-}
-
-.sidebar .logo i {
-  font-size: 1.8rem;
-  color: orange;
-}
-
-.sidebar nav a {
-  display: flex;
-  gap: 10px;
-  padding: 10px;
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-  margin-bottom: 5px;
-}
-
-.sidebar nav a.active,
-.sidebar nav a:hover {
-  background: orange;
-}
-
-/* Main Content */
-.main {
-  margin-left: 250px;
-  width: calc(100% - 250px);
-  padding: 30px;
-}
-
-.container {
-  max-width: 900px;
-  margin: 0 auto;
+/* Main grid */
+.conversion-header {
   text-align: center;
-}
-
-.icon-circle {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  background: #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
-  font-size: 2rem;
-  color: #6b7280;
-}
-
-.title {
-  font-size: 2.5rem;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-.subtitle {
-  font-size: 1.1rem;
-  color: #6b7280;
   margin-bottom: 30px;
 }
 
-.card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+.conversion-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
 }
 
+.conversion-header p {
+  color: #6b7280;
+  font-size: 1rem;
+  margin-top: 5px;
+}
+
+/* Cards Grid */
+.conversion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+/* Card */
 .conversion-card {
-  max-width: 600px;
-  margin: 0 auto 20px auto;
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.conversion-item {
+.conversion-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+/* Card Header */
+.card-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 15px;
-  padding: 12px;
-  border-radius: 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
 }
 
-.conversion-item i {
-  font-size: 1.5rem;
-  color: #16a34a;
-}
-
-.conversion-text h3 {
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
   font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+}
+
+.status-badge.completed {
+  background: #10b981;
+}
+
+.status-badge.processing {
+  background: #f59e0b;
+}
+
+.status-badge.uploading {
+  background: #3b82f6;
+}
+
+.file-type {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* File Name */
+.file-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 12px 0;
   color: #111827;
 }
 
-.conversion-text p {
-  font-size: 0.875rem;
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.progress {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 6px;
+}
+
+/* Progress Text & Date */
+.progress-text {
+  font-size: 0.8rem;
   color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.conversion-date {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+/* Download Button */
+.download-btn {
+  padding: 8px 16px;
+  background: #10b981;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.download-btn:hover {
+  background: #059669;
 }
 
 .info-text {
-  font-size: 0.875rem;
+  text-align: center;
   color: #6b7280;
+  font-size: 0.9rem;
   margin-top: 20px;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .main {
-    margin-left: 0;
-    width: 100%;
-  }
-  .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-  }
 }

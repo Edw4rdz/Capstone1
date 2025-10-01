@@ -66,14 +66,14 @@ body {
 }
 
 /* Header */
-.header {
+.headert {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
-.header-icon {
+.headert-icon {
   width: 50px;
   height: 50px;
   background: orange;
@@ -104,15 +104,15 @@ body {
 /* Card */
 .card {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .uploadt-area {
-  border: 2px dashed #22c55e; 
-  border-radius: 12px;
-  padding: 40px;
+  border: 2px dashed #f97316; 
+  border-radius: 10px;
+  padding: 25px;
   text-align: center;
   margin-bottom: 16px;
   position: relative;
@@ -120,7 +120,7 @@ body {
 
   .uploadt-icon {
   font-size: 32px;
-  color: #16a34a; 
+  color: #f97316; 
   margin-bottom: 12px;
 }
 
@@ -135,14 +135,6 @@ textarea {
   resize: vertical;
 }
 
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
 .examples {
   margin-top: 12px;
 }
@@ -155,6 +147,15 @@ textarea {
   margin-right: 6px;
   cursor: pointer;
   font-size: 0.8rem;
+}
+
+.browset {
+  background: none;
+  border: none;
+  color: #f97316; 
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
 }
 
 .checkbox-grid {
@@ -188,7 +189,7 @@ textarea {
   margin-bottom: 6px;
 }
 
-.convert-btn {
+.convertt-btn {
   background: #f97316;
   color: white;
   border: none;

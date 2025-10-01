@@ -14,7 +14,6 @@ export default function WordToPPT() {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // File selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (
@@ -30,7 +29,6 @@ export default function WordToPPT() {
     }
   };
 
-  // Upload Word to backend and generate PPT
   const handleUpload = async () => {
     if (!file) return alert("Please select a Word document first");
     if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
@@ -45,7 +43,9 @@ export default function WordToPPT() {
 
       try {
         const response = await convertWord({ base64Word, slides });
-        const slideData = response.data;
+
+        // ✅ FIX: extract slides array from response
+        const slideData = response.data.slides;
 
         if (!Array.isArray(slideData)) {
           const msg = response.data?.error || "Backend returned invalid data";
@@ -53,14 +53,13 @@ export default function WordToPPT() {
           return alert("Conversion failed: " + msg);
         }
 
-        // Generate PPT
         const pptx = new PptxGen();
         pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
         pptx.layout = "A4";
 
         slideData.forEach((slide) => {
           const pptSlide = pptx.addSlide();
-          pptSlide.addText(slide.title, {
+          pptSlide.addText(slide.title || "Untitled", {
             x: 0.5,
             y: 0.5,
             w: "90%",
@@ -69,7 +68,7 @@ export default function WordToPPT() {
             bold: true,
             color: "363636",
           });
-          pptSlide.addText(slide.bullets.join("\n"), {
+          pptSlide.addText(slide.bullets?.join("\n") || "", {
             x: 0.5,
             y: 1.5,
             w: "90%",
@@ -80,7 +79,6 @@ export default function WordToPPT() {
           });
         });
 
-        // Download PPT
         const blob = await pptx.write("blob");
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -105,7 +103,6 @@ export default function WordToPPT() {
     };
   };
 
-  // Logout
   const handleLogout = () => {
     const confirmLogout = window.confirm("Are you sure you want to log out?");
     if (!confirmLogout) return;
@@ -113,13 +110,11 @@ export default function WordToPPT() {
     setLoggingOut(true);
     localStorage.removeItem("user");
     sessionStorage.removeItem("user");
-
     setTimeout(() => navigate("/login"), 1200);
   };
 
   return (
     <div className="ai-dashboard">
-      {/* Sidebar */}
       <aside className="ai-sidebar">
         <div className="ai-logo">
           <i className="fa fa-magic"></i>
@@ -128,7 +123,6 @@ export default function WordToPPT() {
             <p>Convert & Generate</p>
           </div>
         </div>
-
         <nav className="ai-nav">
           <div className="top-links">
             <Link to="/dashboard" className="active">
@@ -144,7 +138,6 @@ export default function WordToPPT() {
               <FaUpload className="icon" /> Upload Template
             </Link>
           </div>
-
           <div className="bottom-links">
             <div className="logout-btn" onClick={handleLogout}>
               <FaSignOutAlt className="icon" /> Logout
@@ -154,31 +147,25 @@ export default function WordToPPT() {
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <main className="ai-main">
-        <div className="ai-container">
-          {/* Header */}
-          <div className="ai-header">
-            <h1>Word to PPT Converter</h1>
-            <p className="ai-subtitle">
-              Transform your Word documents into editable PowerPoint presentations
-            </p>
-          </div>
+      <main className="mainw">
+        <div className="containerw">
+          <header className="header">
+            <div className="headerw-icon">DOCX</div>
+            <div>
+              <h1>Word to PPT Converter</h1>
+              <p>Transform your Word documents into editable PowerPoint presentations</p>
+            </div>
+          </header>
 
-          {/* Content */}
-          <div className="ai-content">
+          <div className="contentw-grid">
             <div className="ai-left">
-              {/* Upload Card */}
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Word Document</h2>
-                <div className="uploadp-area">
-                  <div className="uploadp-icon">⬆</div>
+                <div className="uploadw-area">
+                  <div className="uploadw-icon">⬆</div>
                   <h3>
                     Drop your Word document here, or{" "}
-                    <span
-                      className="browsep"
-                      onClick={() => fileInputRef.current.click()}
-                    >
+                    <span className="browsew" onClick={() => fileInputRef.current.click()}>
                       browse
                     </span>
                   </h3>
@@ -195,14 +182,13 @@ export default function WordToPPT() {
                 </div>
                 <button
                   onClick={handleUpload}
-                  className="uploadp-btn"
+                  className="convertw-btn"
                   disabled={isLoading || !file}
                 >
                   {isLoading ? "Converting..." : "Convert to PPT"}
                 </button>
               </div>
 
-              {/* Customize Card */}
               <div className="ai-card">
                 <h2>Customize Your Presentation</h2>
                 <div className="ai-slider-section">
@@ -220,7 +206,6 @@ export default function WordToPPT() {
               </div>
             </div>
 
-            {/* Right Column */}
             <div className="ai-right">
               <div className="ai-info-box">
                 <h3>Smart Conversion</h3>

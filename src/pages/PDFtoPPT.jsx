@@ -40,7 +40,7 @@ export default function PDFToPPT() {
 
         // Call backend API
         const response = await convertPDF({ base64PDF, slides });
-        const slideData = response.data; // [{title, bullets: []}, ...]
+        const slideData = response.data.slides; // ✅ fix: extract slides array
 
         const pptx = new PptxGen();
         pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
@@ -49,7 +49,7 @@ export default function PDFToPPT() {
         slideData.forEach((slide) => {
           const pptSlide = pptx.addSlide();
 
-          pptSlide.addText(slide.title, {
+          pptSlide.addText(slide.title || "Untitled", {
             x: 0.5,
             y: 0.5,
             w: "90%",
@@ -59,7 +59,7 @@ export default function PDFToPPT() {
             color: "363636",
           });
 
-          pptSlide.addText(slide.bullets.join("\n"), {
+          pptSlide.addText(slide.bullets?.join("\n") || "", {
             x: 0.5,
             y: 1.5,
             w: "90%",
@@ -148,12 +148,15 @@ export default function PDFToPPT() {
       <main className="ai-main">
         <div className="ai-container">
           {/* Header */}
-          <div className="ai-header">
+          <header className="headerp">
+            <div className="headerp-icon">PDF</div>
+            <div>
             <h1>PDF to PPT Converter</h1>
-            <p className="ai-subtitle">
+            <p>
               Transform your PDF documents into editable PowerPoint presentations
             </p>
           </div>
+          </header>
 
           {/* Two-column Content */}
           <div className="ai-content">
