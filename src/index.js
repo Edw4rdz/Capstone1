@@ -2,8 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./App.css";
-import { Buffer } from "buffer";
-import process from "process";
+
 
 
 const root = ReactDOM.createRoot(document.getElementById("root"));

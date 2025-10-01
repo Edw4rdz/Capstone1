@@ -27,7 +27,7 @@ export default function App() {
         <Route path="/exceltoppt" element={<ExcelToPPT />} />
         <Route path="/conversion" element={<Conversions />} />
         <Route path="/logout" element={<Logout />} />
-        <Route path="/upload-template" element={<UploadTemplate />} />
+        <Route path="/uploadTemplate" element={<UploadTemplate />} />
         <Route path="*" element={<h1>404 - Page Not Found</h1>} />
       </Routes>
     </Router>
