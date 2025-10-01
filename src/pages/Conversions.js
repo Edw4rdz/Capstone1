@@ -72,7 +72,7 @@ export default function Conversions() {
         <div className="container">
           <header className="conversion-header">
             <h1>Conversion History</h1>
-            <p>Track all your uploaded files, AI processing status, and download completed presentations.</p>
+            <p>Track all your uploaded file, AI processing status, and download completed presentations.</p>
           </header>
 
           {loading ? (
@@ -109,3 +109,4 @@ export default function Conversions() {
     </div>
   );
 }
+   
