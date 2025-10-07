@@ -249,12 +249,12 @@ export default function PDFToPPT() {
               {/* Features */}
               <div className="ai-info-box">
                 <h3>Features</h3>
-                <ul className="ai-features">
+                <ol className="ai-features">
                   <li>Text-based PDFs convert best</li>
                   <li>Scanned PDFs may have limited editable content</li>
                   <li>Choose slide count and style</li>
                   <li>Instant download as PPTX</li>
-                </ul>
+                </ol>
               </div>
             </div>
           </div>

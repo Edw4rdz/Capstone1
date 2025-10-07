@@ -16,6 +16,15 @@ export const convertPDF = (data) =>
 export const convertWord = (data) =>
   axios.post(`${API_BASE}/convert-word`, data);
 
+export const convertText = (data) =>
+  axios.post(`${API_BASE}/convert-text`, data);
+
+export const convertExcel = (data) =>
+  axios.post("http://localhost:5000/convert-excel", data);
+
+
+
+
 // ------------------ AI Generator ------------------ //
 export const generateSlides = async ({ topic, slides }) => {
   return await axios.post(`${API_BASE}/ai-generator`, { topic, slides });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaEnvelope, FaLock, FaUser } from "react-icons/fa"; // Removed FaUpload
+import { FaEnvelope, FaLock, FaUser } from "react-icons/fa";
 import axios from "axios";
 import signupImg from "../assets/signupImg.jpg";
 import "./signup.css";
@@ -11,16 +11,27 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(""); // State for error messages
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const validateForm = () => {
-    if (!fullName.trim()) return "Full name is required.";
-    if (!email.trim()) return "Email is required.";
-    if (!/\S+@\S+\.\S+/.test(email)) return "Please enter a valid email.";
-    if (!password) return "Password is required.";
-    if (password.length < 6) return "Password must be at least 6 characters.";
-    return "";
+   if (!fullName.trim()) return "Full name is required.";
+
+  // ❌ Prevent digits or special characters (only letters and spaces allowed)
+  if (!/^[A-Za-z\s]+$/.test(fullName))
+    return "Full name should contain only letters and spaces.";
+
+  if (!email.trim()) return "Email is required.";
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[cC][oO][mM]$/;
+  if (!emailRegex.test(email)) return "Please re-enter your email.";
+
+  if (!password) return "Password is required.";
+  if (password.length < 6) return "Password must be at least 6 characters.";
+
+  // 🚫 Prevent spaces in password
+  if (/\s/.test(password)) return "Password must not contain spaces.";
+
+  return "";
   };
 
   const handleRegister = async () => {
@@ -31,15 +42,14 @@ export default function Signup() {
     }
 
     setLoading(true);
-    setError(""); // Clear previous errors
+    setError("");
     try {
       const response = await axios.post("http://localhost:5000/register", {
-        fullName,
+        name: fullName,
         email,
         password,
       });
 
-      console.log("Response:", response.data);
       const data = response.data;
 
       if (data.success) {
@@ -47,7 +57,6 @@ export default function Signup() {
         if (data.user) {
           localStorage.setItem("user", JSON.stringify(data.user));
         } else {
-          console.warn("No user data returned, storing minimal data");
           localStorage.setItem("user", JSON.stringify({ name: fullName, email }));
         }
         navigate("/dashboard");
@@ -115,23 +124,24 @@ export default function Signup() {
               <div className="input-box">
                 <i><FaLock /></i>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
                 />
               </div>
-              
+
               <div className="show-password">
-              <input
-                type="checkbox"
-                id="showPassword"
-                onChange={() => setShowPassword(!showPassword)}
-                disabled={loading}
-              />
-              <label htmlFor="showPassword"> Show Password</label>
-            </div>
+                <input
+                  type="checkbox"
+                  id="showPassword"
+                  onChange={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                />
+                <label htmlFor="showPassword"> Show Password</label>
+              </div>
+
               <div className="button">
                 <input
                   type="button"

@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom"; // Added useNavigate for l
 import { FaSignOutAlt, FaUpload } from "react-icons/fa"; // Added icons for logout and upload
 import "./texttoppt.css"; // keep your existing CSS
 import "./Dashboard"; // Sidebar + Global
+import { convertText, downloadPPTX } from "../api";
+
 
 export default function TextToPPT() {
   const [fileContent, setFileContent] = useState("");
@@ -11,6 +13,29 @@ export default function TextToPPT() {
   const fileInputRef = useRef(null);
   const navigate = useNavigate(); // For logout navigation
   const [loggingOut, setLoggingOut] = useState(false);
+const handleConvert = async () => {
+  if (!fileContent.trim()) {
+    alert("Please upload a .txt file first!");
+    return;
+  }
+
+  try {
+    const response = await convertText({
+      textContent: fileContent,
+      slides: slides,
+    });
+
+    if (response.data.success && response.data.slides) {
+      await downloadPPTX(response.data.slides);
+      alert("✅ PPTX file generated successfully!");
+    } else {
+      alert("❌ Conversion failed: Invalid response from AI.");
+    }
+  } catch (err) {
+    console.error("Text → PPT conversion failed:", err);
+    alert("❌ Conversion failed. Please try again.");
+  }
+};
 
   // File upload handlers
   const handleFileUpload = (event) => {
@@ -201,7 +226,10 @@ export default function TextToPPT() {
                   </div>
                 </div>
 
-                <button className="convertt-btn">Convert to Presentation</button>
+                <button className="convertt-btn" onClick={handleConvert}>
+  Convert to Presentation
+</button>
+
               </section>
             </div>
 

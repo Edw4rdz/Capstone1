@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom"; // Added useNavigate for l
 import { FaSignOutAlt, FaUpload } from "react-icons/fa"; // Added icons for logout and upload
 import "./exceltoppt.css"; // keep your CSS
 import "./Dashboard"; // Sidebar + Global
+import { convertExcel, downloadPPTX } from "../api";
 
 export default function ExcelToPPT() {
   const [file, setFile] = useState(null);
@@ -42,23 +43,36 @@ export default function ExcelToPPT() {
 
   const handleDragOver = (e) => e.preventDefault();
 
-  // Download simulated PPT
-  const handleDownload = () => {
-    if (!file) {
-      alert("Upload an Excel file first!");
-      return;
-    }
-    const blob = new Blob(
-      [`This is a simulated PPTX converted from ${fileName}`],
-      { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName.replace(/\.(xlsx|xls)$/i, ".pptx");
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Convert Excel to PPT
+const handleDownload = async () => {
+  if (!file) {
+    alert("Upload an Excel file first!");
+    return;
+  }
+
+  try {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Excel = e.target.result.split(",")[1];
+      const slides = 8;
+
+      // ✅ send JSON, not FormData
+     const { data } = await convertExcel({ base64Excel, slides });
+
+
+      if (data.success && data.slides) {
+        await downloadPPTX(data.slides);
+      } else {
+        alert("Excel conversion failed: Invalid slide data.");
+      }
+    };
+    reader.readAsDataURL(file);
+  } catch (err) {
+    console.error("Excel conversion error:", err);
+    alert("Excel conversion failed. Check console for details.");
+  }
+};
+
 
   const handleLogout = () => {
     const confirmLogout = window.confirm("Are you sure you want to log out?");
@@ -174,11 +188,7 @@ export default function ExcelToPPT() {
                 </div>
 
                 {/* Download button */}
-                {file && (
-                  <button className="download-btn" onClick={handleDownload}>
-                    Download as PPTX
-                  </button>
-                )}
+                
               </section>
 
               {/* Customize Presentation */}
@@ -230,7 +240,9 @@ export default function ExcelToPPT() {
                   </div>
                 </div>
 
-                <button className="convert-btn">Convert to PowerPoint</button>
+                <button className="convert-btn" onClick={handleDownload}>
+  Convert to PowerPoint
+</button>
               </section>
             </div>
 

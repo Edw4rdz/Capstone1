@@ -355,7 +355,7 @@ body {
 }
 
 .ai-features li::before {
-  content: "✔";
+  content: "";
   position: absolute;
   left: 0;
   color: #22c55e;

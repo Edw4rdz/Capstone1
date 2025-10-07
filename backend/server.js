@@ -11,6 +11,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import mammoth from "mammoth";
 import PPTXGenJS from "pptxgenjs";
 import multer from "multer";
+import * as XLSX from "xlsx";
+
 
 // Import routes
 import templateRoutes from "./routes/templateRoutes.js"; // prebuilt templates
@@ -327,6 +329,122 @@ app.post("/convert-word", async (req, res) => {
     res.status(500).json({ error: "Word Conversion failed: " + err.message });
   }
 });
+// ---------------- Convert Text → PPT ---------------- //
+app.post("/convert-text", async (req, res) => {
+  const { textContent, slides } = req.body || {};
+  if (!textContent || !slides)
+    return res.status(400).json({ error: "Missing text content or slide count" });
+
+  try {
+    const prompt = `
+      Organize the following text into ${slides} slides.
+      Each slide must have:
+      - A title (max 10 words)
+      - 3–5 bullet points
+      Text:
+      ${textContent}
+      Return ONLY JSON in this format:
+      [
+        { "title": "Slide 1 title", "bullets": ["point1", "point2"] },
+        { "title": "Slide 2 title", "bullets": ["point1", "point2"] }
+      ]
+    `;
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" },
+    });
+
+    let rawText = "";
+    try {
+      rawText = await extractResponseText(result);
+    } catch (err) {
+      console.error("Failed to extract response text from text conversion:", err);
+      return res.status(500).json({ error: "AI returned unexpected response" });
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch (err) {
+      console.error("Text JSON parse failed:", err, rawText);
+      return res.status(500).json({ error: "Gemini returned invalid JSON" });
+    }
+
+    let slideData;
+    try {
+      slideData = ensureSlidesArray(parsed);
+    } catch (err) {
+      console.error("Text slides normalization failed:", err, parsed);
+      return res.status(500).json({ error: "Invalid slides format from AI" });
+    }
+
+    res.json({ success: true, slides: slideData });
+  } catch (err) {
+    console.error("Text Conversion failed:", err);
+    res.status(500).json({ error: "Text Conversion failed: " + err.message });
+  }
+});
+// ---------------- Convert Excel → PPT ---------------- //
+app.post("/convert-excel", async (req, res) => {
+  const { base64Excel, slides } = req.body || {};
+  if (!base64Excel || !slides)
+    return res.status(400).json({ error: "Missing Excel file or slide count" });
+
+  try {
+    // 🧩 1. Decode Excel and extract readable text
+    const buffer = Buffer.from(base64Excel, "base64");
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+
+    let combinedText = "";
+    workbook.SheetNames.forEach((sheetName) => {
+      const sheet = workbook.Sheets[sheetName];
+      const sheetData = XLSX.utils.sheet_to_csv(sheet);
+      combinedText += `\n📄 Sheet: ${sheetName}\n${sheetData}\n`;
+    });
+
+    // 🧩 2. Generate slide content using Gemini (text only)
+    const prompt = `
+      You are creating PowerPoint slides from Excel data.
+      The user wants ${slides} slides.
+
+      Each slide must include:
+      - A clear title (<=10 words)
+      - 3–5 concise bullet points summarizing insights, totals, or patterns.
+
+      Here is the extracted Excel content:
+      ${combinedText}
+
+      Return only JSON in this structure:
+      [
+        { "title": "Slide 1", "bullets": ["point 1", "point 2", "point 3"] },
+        { "title": "Slide 2", "bullets": ["point 1", "point 2"] }
+      ]
+    `;
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" },
+    });
+
+    const text = await extractResponseText(result);
+    let parsed;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      console.warn("⚠️ Gemini returned non-JSON, retrying with fallback...");
+      parsed = [{ title: "Summary", bullets: ["Could not parse Gemini output."] }];
+    }
+
+    // ✅ 3. Send slides back
+    res.json({ success: true, slides: parsed });
+  } catch (err) {
+    console.error("Excel Conversion failed:", err);
+    res.status(500).json({ error: "Excel Conversion failed: " + err.message });
+  }
+});
+
 
 // ---------------- Start Server ---------------- //
 const PORT = process.env.PORT || 5000;
