@@ -12,6 +12,8 @@ import mammoth from "mammoth";
 import PPTXGenJS from "pptxgenjs";
 import multer from "multer";
 import * as XLSX from "xlsx";
+import axios from "axios";
+
 
 
 // Import routes
@@ -188,50 +190,104 @@ app.post("/ai-generator", async (req, res) => {
 });
 
 // ---------------- Download PPTX Route ---------------- //
+// ---------------- Download PPTX Route (modern layout: text left, image right) ---------------- //
 app.post("/download-pptx", async (req, res) => {
   const { slides } = req.body || {};
-  if (!slides || !Array.isArray(slides)) return res.status(400).json({ success: false, error: "Missing or invalid slides" });
+  if (!slides || !Array.isArray(slides))
+    return res.status(400).json({ success: false, error: "Missing or invalid slides" });
 
   try {
     const pptx = new PPTXGenJS();
-    slides.forEach((s) => {
+
+    for (const s of slides) {
       const slide = pptx.addSlide();
-      slide.addText(s.title || "Untitled", { x: 0.5, y: 0.5, fontSize: 24, bold: true });
+
+      // 🎨 Slide layout constants
+      const margin = 0.5;
+      const textWidth = 5.0; // left half for text
+      const imageWidth = 4.5; // right half for image
+
+      // 🏷️ Add title
+      slide.addText(s.title || "Untitled", {
+        x: margin,
+        y: margin,
+        w: textWidth - margin,
+        fontSize: 28,
+        bold: true,
+        color: "203864", // dark blue accent
+      });
+
+      // 🧾 Add bullet points
       if (s.bullets?.length) {
-        s.bullets.forEach((b, i) => {
-          slide.addText(`• ${b}`, { x: 0.7, y: 1 + i * 0.5, fontSize: 18 });
+        const bulletText = s.bullets.map((b) => `• ${b}`).join("\n");
+        slide.addText(bulletText, {
+          x: margin,
+          y: 1.2,
+          w: textWidth - margin,
+          fontSize: 18,
+          color: "333333",
+          lineSpacing: 28,
         });
       }
-    });
 
+      // 🖼️ Add image on the right side (half the slide)
+      if (s.imageBase64) {
+        try {
+          const imgBase64 = `data:image/png;base64,${s.imageBase64}`;
+          slide.addImage({
+            data: imgBase64,
+            x: textWidth + margin,
+            y: 1.0,
+            w: imageWidth,
+            h: 4.5,
+          });
+        } catch (imgErr) {
+          console.warn(`⚠️ Skipping invalid image for slide "${s.title}":`, imgErr.message);
+        }
+      }
+    }
+
+    // 📦 Export the PPTX
     const buffer = await pptx.write("nodebuffer");
     res.setHeader("Content-Disposition", "attachment; filename=AI_Presentation.pptx");
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    );
     res.send(buffer);
   } catch (err) {
     console.error("PPTX generation failed:", err);
-    res.status(500).json({ success: false, error: "PPTX generation failed" });
+    res.status(500).json({ success: false, error: "PPTX generation failed: " + err.message });
   }
 });
 
-// ---------------- Convert PDF → PPT ---------------- //
+// ---------------- Convert PDF → PPT (with images using Craiyon) ---------------- //
+// ---------------- Convert PDF → PPT (with images using Pollinations) ---------------- //
 app.post("/convert-pdf", async (req, res) => {
   const { base64PDF, slides } = req.body || {};
-  if (!base64PDF || !slides) return res.status(400).json({ error: "Missing base64PDF or slides" });
+  if (!base64PDF || !slides)
+    return res.status(400).json({ error: "Missing base64PDF or slides" });
 
   try {
-    const prompt = `
-      Extract text from this PDF and organize into ${slides} slides.
-      Each slide: title (max 10 words) + 3-5 bullet points.
-      Return JSON array of objects with "title" and "bullets".
+    // 🧠 Step 1: Generate slide text + image prompts using Gemini
+    const textPrompt = `
+      Analyze this PDF and create ${slides} PowerPoint slides.
+      Each slide must include:
+      - A title (max 10 words)
+      - 3–5 bullet points
+      - An "imagePrompt" describing an image that fits the slide content
+      Return valid JSON ONLY:
+      [
+        { "title": "Slide 1", "bullets": ["point 1", "point 2"], "imagePrompt": "image description" }
+      ]
     `;
 
-    const result = await model.generateContent({
+    const textResult = await model.generateContent({
       contents: [
         {
           role: "user",
           parts: [
-            { text: prompt },
+            { text: textPrompt },
             { inlineData: { mimeType: "application/pdf", data: base64PDF } },
           ],
         },
@@ -239,36 +295,40 @@ app.post("/convert-pdf", async (req, res) => {
       generationConfig: { responseMimeType: "application/json" },
     });
 
-    let rawText = "";
-    try {
-      rawText = await extractResponseText(result);
-    } catch (err) {
-      console.error("Failed to extract response text from PDF conversion:", err);
-      return res.status(500).json({ error: "AI returned unexpected response" });
+    const rawText = await extractResponseText(textResult);
+    const slidesData = ensureSlidesArray(JSON.parse(rawText));
+
+    // 🖼 Step 2: Generate related images using Pollinations.ai (no API key needed)
+    async function generateImage(prompt) {
+      try {
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+        const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
+        const base64 = Buffer.from(response.data, "binary").toString("base64");
+        return base64;
+      } catch (err) {
+        console.warn(` ${err.message}`);
+        return null;
+      }
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText);
-    } catch (err) {
-      console.error("PDF JSON parse failed:", err, rawText);
-      return res.status(500).json({ error: "Gemini returned invalid JSON" });
-    }
+    // 🧩 Step 3: Attach generated images to each slide
+    const slidesWithImages = await Promise.all(
+      slidesData.map(async (slide) => {
+        const imgPrompt =
+          slide.imagePrompt || slide.title || "illustration related to the topic";
+        const imageBase64 = await generateImage(imgPrompt);
+        return { ...slide, imageBase64 };
+      })
+    );
 
-    let slideData;
-    try {
-      slideData = ensureSlidesArray(parsed);
-    } catch (err) {
-      console.error("PDF slides normalization failed:", err, parsed);
-      return res.status(500).json({ error: "Invalid slides format from AI" });
-    }
-
-    res.json({ success: true, slides: slideData });
+    // ✅ Return slides with text + base64 images
+    res.json({ success: true, slides: slidesWithImages });
   } catch (err) {
-    console.error("Conversion failed:", err);
+    console.error("❌ PDF Conversion failed:", err);
     res.status(500).json({ error: "Conversion failed: " + err.message });
   }
 });
+
 
 // ---------------- Convert Word → PPT ---------------- //
 app.post("/convert-word", async (req, res) => {

@@ -13,6 +13,8 @@ export default function PDFToPPT() {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [slidePreviews, setSlidePreviews] = useState([]); // { title, bullets, imageBase64, loading }
+
 
   // File selection
   const handleFileChange = (e) => {
@@ -25,74 +27,135 @@ export default function PDFToPPT() {
     }
   };
 
-  // Upload PDF to backend and generate PPT
-  const handleUpload = async () => {
-    if (!file) return alert("Please select a PDF first");
-    if (file.size > 20 * 1024 * 1024)
-      return alert("File too large (max 20MB)");
+  // ---------------- Upload PDF to backend and generate PPT ----------------
+const handleUpload = async () => {
+  if (!file) return alert("Please select a PDF first");
+  if (file.size > 20 * 1024 * 1024)
+    return alert("File too large (max 20MB)");
 
-    setIsLoading(true);
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64PDF = reader.result.split(",")[1];
+  setIsLoading(true);
+  setSlidePreviews([]); // reset previews
 
-        // Call backend API
-        const response = await convertPDF({ base64PDF, slides });
-        const slideData = response.data.slides; // ✅ fix: extract slides array
+  try {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
 
-        const pptx = new PptxGen();
-        pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
-        pptx.layout = "A4";
+    reader.onload = async () => {
+      const base64PDF = reader.result.split(",")[1];
 
-        slideData.forEach((slide) => {
-          const pptSlide = pptx.addSlide();
+      // 1️⃣ Call backend API
+      const response = await convertPDF({ base64PDF, slides });
+      const slideData = response.data.slides;
 
-          pptSlide.addText(slide.title || "Untitled", {
-            x: 0.5,
-            y: 0.5,
-            w: "90%",
-            h: 1,
-            fontSize: 24,
-            bold: true,
-            color: "363636",
-          });
+      // 2️⃣ Initialize previews with loading state
+      const previews = slideData.map((s) => ({ ...s, loading: true }));
+      setSlidePreviews(previews);
 
-          pptSlide.addText(slide.bullets?.join("\n") || "", {
-            x: 0.5,
-            y: 1.5,
-            w: "90%",
-            h: 6,
-            fontSize: 18,
-            bullet: true,
-            color: "363636",
-          });
-        });
+      alert(
+        "Slides generated. Images are loading in the background, please wait..."
+      );
 
-        // Download PPT
-        await pptx.write("blob").then((blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = `${file.name.replace(".pdf", "")}_converted.pptx`;
-          link.click();
-          URL.revokeObjectURL(url);
-        });
+      // 3️⃣ Wait for each image to load asynchronously
+      const loadedSlides = await Promise.all(
+        slideData.map(async (slide) => {
+          if (slide.imageBase64) {
+            return { ...slide, loading: false };
+          } else {
+            // optional: retry or fallback image
+            return { ...slide, imageBase64: null, loading: false };
+          }
+        })
+      );
 
-        alert("Conversion done! PPTX downloaded.");
-      };
+      setSlidePreviews(loadedSlides);
 
-      reader.onerror = () => {
-        throw new Error("Could not read PDF file.");
-      };
-    } catch (err) {
-      console.error(err);
-      alert("Conversion failed. Check console for details.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      // 4️⃣ Generate PPTX
+      const pptx = new PptxGen();
+      pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
+      pptx.layout = "A4";
+
+loadedSlides.forEach((slide, index) => {
+  const pptSlide = pptx.addSlide();
+
+  // 🏷 Title (top)
+  pptSlide.addText(slide.title || `Slide ${index + 1}`, {
+    x: 0.5,
+    y: 0.3,
+    w: 10.5,
+    h: 0.8,
+    fontSize: 28,
+    bold: true,
+    color: "1F497D",
+    align: "center",
+  });
+
+  // 📋 Bullet points (left side)
+  if (slide.bullets?.length) {
+    pptSlide.addText(slide.bullets.map(b => `• ${b}`).join("\n"), {
+      x: 0.5,
+      y: 1.5,
+      w: 5.5,
+      h: 4.5,
+      fontSize: 18,
+      color: "333333",
+      lineSpacing: 28,
+      bullet: true,
+      valign: "top",
+      align: "left",
+    });
+  }
+
+  // 🖼 Image (right side)
+  if (slide.imageBase64) {
+    pptSlide.addImage({
+      data: `data:image/png;base64,${slide.imageBase64}`,
+      x: 6.2, // move image to right side
+      y: 1.5,
+      w: 4.5,
+      h: 4.5,
+    });
+  } else {
+    pptSlide.addText(
+     slide.loading ? "🖼 Loading image..." : "🖼 No image generated",
+      {
+        x: 6.2,
+        y: 3.5,
+        w: 4.5,
+        h: 1,
+        fontSize: 16,
+        color: slide.loading ? "0000FF" : "FF0000",
+        italic: true,
+        align: "center",
+        valign: "middle",
+      }
+    );
+  }
+});
+
+      // 5️⃣ Download PPTX
+      const blob = await pptx.write("blob");
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${file.name.replace(".pdf", "")}_converted.pptx`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      alert("Conversion done! PPTX downloaded.");
+    };
+
+    reader.onerror = () => {
+      throw new Error("Could not read PDF file.");
+    };
+  } catch (err) {
+    console.error(err);
+    alert("Conversion failed. Check console for details.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   const handleLogout = () => {
     const confirmLogout = window.confirm("Are you sure you want to log out?");
