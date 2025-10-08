@@ -262,23 +262,23 @@ app.post("/download-pptx", async (req, res) => {
 });
 
 // ---------------- Convert PDF → PPT (with images using Craiyon) ---------------- //
-// ---------------- Convert PDF → PPT (with images using Pollinations) ---------------- //
+// ---------------- Convert PDF → PPT (Optimized with Pollinations batching + retries) ---------------- //
 app.post("/convert-pdf", async (req, res) => {
   const { base64PDF, slides } = req.body || {};
   if (!base64PDF || !slides)
     return res.status(400).json({ error: "Missing base64PDF or slides" });
 
   try {
-    // 🧠 Step 1: Generate slide text + image prompts using Gemini
+    // 🧠 Step 1: Ask Gemini to generate slide text + image prompts
     const textPrompt = `
       Analyze this PDF and create ${slides} PowerPoint slides.
       Each slide must include:
       - A title (max 10 words)
       - 3–5 bullet points
       - An "imagePrompt" describing an image that fits the slide content
-      Return valid JSON ONLY:
+      Return ONLY JSON in this format:
       [
-        { "title": "Slide 1", "bullets": ["point 1", "point 2"], "imagePrompt": "image description" }
+        { "title": "Slide 1 title", "bullets": ["point1", "point2"], "imagePrompt": "image description" }
       ]
     `;
 
@@ -298,36 +298,58 @@ app.post("/convert-pdf", async (req, res) => {
     const rawText = await extractResponseText(textResult);
     const slidesData = ensureSlidesArray(JSON.parse(rawText));
 
-    // 🖼 Step 2: Generate related images using Pollinations.ai (no API key needed)
-    async function generateImage(prompt) {
-      try {
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
-        const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
-        const base64 = Buffer.from(response.data, "binary").toString("base64");
-        return base64;
-      } catch (err) {
-        console.warn(` ${err.message}`);
-        return null;
+    // 🧩 Step 2: Pollinations image generator with retries + delay
+    async function generateImage(prompt, retries = 2) {
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          const response = await axios.get(url, {
+            responseType: "arraybuffer",
+            timeout: 20000, // 20s timeout
+          });
+          const base64 = Buffer.from(response.data, "binary").toString("base64");
+          return base64;
+        } catch (err) {
+          console.warn(`⚠️ Pollinations failed (attempt ${attempt + 1}):`, err.message);
+          if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
+        }
       }
+      return null;
     }
 
-    // 🧩 Step 3: Attach generated images to each slide
-    const slidesWithImages = await Promise.all(
-      slidesData.map(async (slide) => {
-        const imgPrompt =
-          slide.imagePrompt || slide.title || "illustration related to the topic";
-        const imageBase64 = await generateImage(imgPrompt);
-        return { ...slide, imageBase64 };
-      })
-    );
+    // 🧱 Step 3: Batch requests to avoid rate limits (5 per batch)
+    const slidesWithImages = [];
+    const batchSize = 5;
 
-    // ✅ Return slides with text + base64 images
+    for (let i = 0; i < slidesData.length; i += batchSize) {
+      const batch = slidesData.slice(i, i + batchSize);
+
+      for (const slide of batch) {
+        const imgPrompt =
+          slide.imagePrompt ||
+          `${slide.title || "presentation topic"} — ${slide.bullets?.join(", ") || ""}`;
+
+        console.log(`🖼 Generating image for slide: ${imgPrompt}`);
+
+        const imageBase64 = await generateImage(imgPrompt);
+        slidesWithImages.push({ ...slide, imageBase64 });
+
+        await new Promise((r) => setTimeout(r, 2000)); // 2s per image
+      }
+
+      console.log(`✅ Completed batch of ${batch.length} slides, waiting before next...`);
+      await new Promise((r) => setTimeout(r, 5000)); // 5s cooldown between batches
+    }
+
+    // ✅ Step 4: Return full slides (text + base64 images)
     res.json({ success: true, slides: slidesWithImages });
   } catch (err) {
     console.error("❌ PDF Conversion failed:", err);
     res.status(500).json({ error: "Conversion failed: " + err.message });
   }
 });
+
+
 
 
 // ---------------- Convert Word → PPT ---------------- //
