@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import mysql from "mysql2/promise";
 import cors from "cors";
 import bcrypt from "bcrypt";
 import session from "express-session";
@@ -13,17 +12,29 @@ import PPTXGenJS from "pptxgenjs";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import axios from "axios";
-
-
+import admin from "firebase-admin";
+import fs from "fs";
 
 // Import routes
-import templateRoutes from "./routes/templateRoutes.js"; // prebuilt templates
-import uploadRoutes from "./routes/uploadRoutes.js"; // upload PPTX files
+import templateRoutes from "./routes/templateRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 
+// ✅ Import JSON file using ESM JSON import syntax
+import serviceAccount from "./serviceAccountKey.json" with { type: "json" };
+
+// Initialize Firebase Admin SDK
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
+const db = admin.firestore();
+
+// Express setup
 const app = express();
-const upload = multer({ storage: multer.memoryStorage() }); // for file uploads
+const upload = multer({ storage: multer.memoryStorage() });
 
-// ---------------- Middleware ---------------- //
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json({ limit: "25mb" }));
 
@@ -35,37 +46,17 @@ app.use(
   })
 );
 
-// Serve static uploaded templates
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// ---------------- Database ---------------- //
-const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  queueLimit: 0,
-});
-
-db.getConnection()
-  .then(() => console.log("✅ Connected to MySQL!"))
-  .catch((err) => console.error("❌ MySQL connection failed:", err.message));
-
-// ---------------- Gemini API ---------------- //
+// Gemini API setup
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-// ---------------- Routes ---------------- //
-app.use("/", templateRoutes);
-app.use("/", uploadRoutes);
-
-// ---------------- Helpers ---------------- //
+// ---------------- Helper Functions ---------------- //
 function ensureSlidesArray(parsed) {
   if (Array.isArray(parsed)) return parsed;
   if (parsed && Array.isArray(parsed.slides)) return parsed.slides;
   if (parsed && Array.isArray(parsed.data)) return parsed.data;
-  // handle object maps like { "0": {...}, "1": {...} }
   if (parsed && typeof parsed === "object") {
     const vals = Object.values(parsed).filter(
       (v) => v && (v.title || v.bullets || Array.isArray(v))
@@ -80,64 +71,83 @@ async function extractResponseText(result) {
   const resp = result.response;
   if (!resp) return JSON.stringify(result);
   if (typeof resp.text === "function") {
-    // some SDKs return a function to get text
     try {
       const t = resp.text();
       return t instanceof Promise ? await t : t;
     } catch {
-      // fallback
       return JSON.stringify(resp);
     }
   }
-  // resp.text might be a string property
   if (typeof resp.text === "string") return resp.text;
   return JSON.stringify(resp);
 }
 
-// ---------------- Auth Routes ---------------- //
+// ---------------- AUTH ROUTES (FIRESTORE VERSION) ---------------- //
 app.post("/register", async (req, res) => {
   const { name, email, password } = req.body || {};
   if (!name || !email || !password)
     return res.status(400).json({ success: false, message: "All fields required." });
 
   try {
-    const [existing] = await db.execute("SELECT email FROM users WHERE email = ?", [email]);
-    if (existing.length) return res.status(400).json({ success: false, message: "Email already exists." });
+    const userRef = db.collection("users");
+    const existing = await userRef.where("email", "==", email).get();
+    if (!existing.empty)
+      return res.status(400).json({ success: false, message: "Email already exists." });
 
     const hashed = await bcrypt.hash(password, 10);
-    const [result] = await db.execute(
-      "INSERT INTO users (name, email, password, created_at) VALUES (?, ?, ?, NOW())",
-      [name, email, hashed]
-    );
-    const [user] = await db.execute("SELECT user_id, name, email FROM users WHERE user_id = ?", [result.insertId]);
-    res.status(201).json({ success: true, user: user[0] });
+    const newUser = {
+      name,
+      email,
+      password: hashed,
+      created_at: admin.firestore.Timestamp.now(),
+    };
+
+    const docRef = await userRef.add(newUser);
+    const userSnap = await docRef.get();
+    const user = { user_id: docRef.id, ...userSnap.data() };
+
+    res.status(201).json({ success: true, user });
   } catch (err) {
+    console.error("Register error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ success: false, message: "Email/password required." });
+  if (!email || !password)
+    return res.status(400).json({ success: false, message: "Email/password required." });
 
   try {
-    const [users] = await db.execute("SELECT * FROM users WHERE email = ?", [email]);
-    if (!users.length) return res.status(401).json({ success: false, message: "Invalid email or password." });
+    const usersRef = db.collection("users");
+    const snapshot = await usersRef.where("email", "==", email).get();
 
-    const user = users[0];
+    if (snapshot.empty)
+      return res.status(401).json({ success: false, message: "Invalid email or password." });
+
+    const userDoc = snapshot.docs[0];
+    const user = { user_id: userDoc.id, ...userDoc.data() };
+
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ success: false, message: "Invalid email or password." });
+    if (!match)
+      return res.status(401).json({ success: false, message: "Invalid email or password." });
 
     res.json({ success: true, user: { user_id: user.user_id, name: user.name, email: user.email } });
   } catch (err) {
+    console.error("Login error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ---------------- AI Generator Route (JSON output) ---------------- //
+// ---------------- Include Routes ---------------- //
+app.use("/", templateRoutes);
+app.use("/", uploadRoutes);
+
+// ---------------- AI Generator ---------------- //
 app.post("/ai-generator", async (req, res) => {
   const { topic, slides } = req.body || {};
-  if (!topic || !slides) return res.status(400).json({ success: false, error: "Missing topic or slides" });
+  if (!topic || !slides)
+    return res.status(400).json({ success: false, error: "Missing topic or slides" });
 
   try {
     const prompt = `
@@ -157,31 +167,9 @@ app.post("/ai-generator", async (req, res) => {
       generationConfig: { responseMimeType: "application/json" },
     });
 
-    let rawText = "";
-    try {
-      rawText = await extractResponseText(result);
-    } catch (err) {
-      console.error("Failed to extract response text:", err);
-      return res.status(500).json({ success: false, error: "AI returned unexpected response" });
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText);
-    } catch (err) {
-      console.error("AI JSON parse failed:", err, rawText);
-      return res.status(500).json({ success: false, error: "Gemini returned invalid JSON" });
-    }
-
-    let slideData;
-    try {
-      slideData = ensureSlidesArray(parsed);
-    } catch (err) {
-      console.error("AI slides normalization failed:", err, parsed);
-      return res.status(500).json({ success: false, error: "Invalid slides format from AI" });
-    }
-
-    // Return JSON so frontend can optionally preview
+    const rawText = await extractResponseText(result);
+    const parsed = JSON.parse(rawText);
+    const slideData = ensureSlidesArray(parsed);
     res.json({ success: true, slides: slideData });
   } catch (err) {
     console.error("AI Generator failed:", err);
@@ -189,8 +177,7 @@ app.post("/ai-generator", async (req, res) => {
   }
 });
 
-// ---------------- Download PPTX Route ---------------- //
-// ---------------- Download PPTX Route (modern layout: text left, image right) ---------------- //
+// ---------------- Download PPTX ---------------- //
 app.post("/download-pptx", async (req, res) => {
   const { slides } = req.body || {};
   if (!slides || !Array.isArray(slides))
@@ -198,26 +185,21 @@ app.post("/download-pptx", async (req, res) => {
 
   try {
     const pptx = new PPTXGenJS();
-
     for (const s of slides) {
       const slide = pptx.addSlide();
-
-      // 🎨 Slide layout constants
       const margin = 0.5;
-      const textWidth = 5.0; // left half for text
-      const imageWidth = 4.5; // right half for image
+      const textWidth = 5.0;
+      const imageWidth = 4.5;
 
-      // 🏷️ Add title
       slide.addText(s.title || "Untitled", {
         x: margin,
         y: margin,
         w: textWidth - margin,
         fontSize: 28,
         bold: true,
-        color: "203864", // dark blue accent
+        color: "203864",
       });
 
-      // 🧾 Add bullet points
       if (s.bullets?.length) {
         const bulletText = s.bullets.map((b) => `• ${b}`).join("\n");
         slide.addText(bulletText, {
@@ -230,24 +212,21 @@ app.post("/download-pptx", async (req, res) => {
         });
       }
 
-      // 🖼️ Add image on the right side (half the slide)
       if (s.imageBase64) {
         try {
-          const imgBase64 = `data:image/png;base64,${s.imageBase64}`;
           slide.addImage({
-            data: imgBase64,
+            data: `data:image/png;base64,${s.imageBase64}`,
             x: textWidth + margin,
             y: 1.0,
             w: imageWidth,
             h: 4.5,
           });
-        } catch (imgErr) {
-          console.warn(`⚠️ Skipping invalid image for slide "${s.title}":`, imgErr.message);
+        } catch (err) {
+          console.warn(`Skipping invalid image for slide "${s.title}":`, err.message);
         }
       }
     }
 
-    // 📦 Export the PPTX
     const buffer = await pptx.write("nodebuffer");
     res.setHeader("Content-Disposition", "attachment; filename=AI_Presentation.pptx");
     res.setHeader(
@@ -260,273 +239,6 @@ app.post("/download-pptx", async (req, res) => {
     res.status(500).json({ success: false, error: "PPTX generation failed: " + err.message });
   }
 });
-
-// ---------------- Convert PDF → PPT (with images using Craiyon) ---------------- //
-// ---------------- Convert PDF → PPT (Optimized with Pollinations batching + retries) ---------------- //
-app.post("/convert-pdf", async (req, res) => {
-  const { base64PDF, slides } = req.body || {};
-  if (!base64PDF || !slides)
-    return res.status(400).json({ error: "Missing base64PDF or slides" });
-
-  try {
-    // 🧠 Step 1: Ask Gemini to generate slide text + image prompts
-    const textPrompt = `
-      Analyze this PDF and create ${slides} PowerPoint slides.
-      Each slide must include:
-      - A title (max 10 words)
-      - 3–5 bullet points
-      - An "imagePrompt" describing an image that fits the slide content
-      Return ONLY JSON in this format:
-      [
-        { "title": "Slide 1 title", "bullets": ["point1", "point2"], "imagePrompt": "image description" }
-      ]
-    `;
-
-    const textResult = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: textPrompt },
-            { inlineData: { mimeType: "application/pdf", data: base64PDF } },
-          ],
-        },
-      ],
-      generationConfig: { responseMimeType: "application/json" },
-    });
-
-    const rawText = await extractResponseText(textResult);
-    const slidesData = ensureSlidesArray(JSON.parse(rawText));
-
-    // 🧩 Step 2: Pollinations image generator with retries + delay
-    async function generateImage(prompt, retries = 2) {
-      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-          const response = await axios.get(url, {
-            responseType: "arraybuffer",
-            timeout: 20000, // 20s timeout
-          });
-          const base64 = Buffer.from(response.data, "binary").toString("base64");
-          return base64;
-        } catch (err) {
-          console.warn(`⚠️ Pollinations failed (attempt ${attempt + 1}):`, err.message);
-          if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
-        }
-      }
-      return null;
-    }
-
-    // 🧱 Step 3: Batch requests to avoid rate limits (5 per batch)
-    const slidesWithImages = [];
-    const batchSize = 5;
-
-    for (let i = 0; i < slidesData.length; i += batchSize) {
-      const batch = slidesData.slice(i, i + batchSize);
-
-      for (const slide of batch) {
-        const imgPrompt =
-          slide.imagePrompt ||
-          `${slide.title || "presentation topic"} — ${slide.bullets?.join(", ") || ""}`;
-
-        console.log(`🖼 Generating image for slide: ${imgPrompt}`);
-
-        const imageBase64 = await generateImage(imgPrompt);
-        slidesWithImages.push({ ...slide, imageBase64 });
-
-        await new Promise((r) => setTimeout(r, 2000)); // 2s per image
-      }
-
-      console.log(`✅ Completed batch of ${batch.length} slides, waiting before next...`);
-      await new Promise((r) => setTimeout(r, 5000)); // 5s cooldown between batches
-    }
-
-    // ✅ Step 4: Return full slides (text + base64 images)
-    res.json({ success: true, slides: slidesWithImages });
-  } catch (err) {
-    console.error("❌ PDF Conversion failed:", err);
-    res.status(500).json({ error: "Conversion failed: " + err.message });
-  }
-});
-
-
-
-
-// ---------------- Convert Word → PPT ---------------- //
-app.post("/convert-word", async (req, res) => {
-  const { base64Word, slides } = req.body || {};
-  if (!base64Word || !slides) return res.status(400).json({ error: "Missing Word file or slides" });
-
-  try {
-    const buffer = Buffer.from(base64Word, "base64");
-    const { value: text } = await mammoth.extractRawText({ buffer });
-    if (!text || text.trim().length === 0) return res.status(400).json({ error: "Could not extract text from Word file" });
-
-    const prompt = `
-      Organize the following text into ${slides} slides.
-      Each slide must have:
-      - A title (max 10 words)
-      - 3–5 bullet points
-      Text:
-      ${text}
-      Return ONLY JSON in this format:
-      [
-        { "title": "Slide 1 title", "bullets": ["point1", "point2"] },
-        { "title": "Slide 2 title", "bullets": ["point1", "point2"] }
-      ]
-    `;
-
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" },
-    });
-
-    let rawText = "";
-    try {
-      rawText = await extractResponseText(result);
-    } catch (err) {
-      console.error("Failed to extract response text from Word conversion:", err);
-      return res.status(500).json({ error: "AI returned unexpected response" });
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText);
-    } catch (err) {
-      console.error("Word JSON parse failed:", err, rawText);
-      return res.status(500).json({ error: "Gemini returned invalid JSON" });
-    }
-
-    let slideData;
-    try {
-      slideData = ensureSlidesArray(parsed);
-    } catch (err) {
-      console.error("Word slides normalization failed:", err, parsed);
-      return res.status(500).json({ error: "Invalid slides format from AI" });
-    }
-
-    res.json({ success: true, slides: slideData });
-  } catch (err) {
-    console.error("Word Conversion failed:", err);
-    res.status(500).json({ error: "Word Conversion failed: " + err.message });
-  }
-});
-// ---------------- Convert Text → PPT ---------------- //
-app.post("/convert-text", async (req, res) => {
-  const { textContent, slides } = req.body || {};
-  if (!textContent || !slides)
-    return res.status(400).json({ error: "Missing text content or slide count" });
-
-  try {
-    const prompt = `
-      Organize the following text into ${slides} slides.
-      Each slide must have:
-      - A title (max 10 words)
-      - 3–5 bullet points
-      Text:
-      ${textContent}
-      Return ONLY JSON in this format:
-      [
-        { "title": "Slide 1 title", "bullets": ["point1", "point2"] },
-        { "title": "Slide 2 title", "bullets": ["point1", "point2"] }
-      ]
-    `;
-
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" },
-    });
-
-    let rawText = "";
-    try {
-      rawText = await extractResponseText(result);
-    } catch (err) {
-      console.error("Failed to extract response text from text conversion:", err);
-      return res.status(500).json({ error: "AI returned unexpected response" });
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText);
-    } catch (err) {
-      console.error("Text JSON parse failed:", err, rawText);
-      return res.status(500).json({ error: "Gemini returned invalid JSON" });
-    }
-
-    let slideData;
-    try {
-      slideData = ensureSlidesArray(parsed);
-    } catch (err) {
-      console.error("Text slides normalization failed:", err, parsed);
-      return res.status(500).json({ error: "Invalid slides format from AI" });
-    }
-
-    res.json({ success: true, slides: slideData });
-  } catch (err) {
-    console.error("Text Conversion failed:", err);
-    res.status(500).json({ error: "Text Conversion failed: " + err.message });
-  }
-});
-// ---------------- Convert Excel → PPT ---------------- //
-app.post("/convert-excel", async (req, res) => {
-  const { base64Excel, slides } = req.body || {};
-  if (!base64Excel || !slides)
-    return res.status(400).json({ error: "Missing Excel file or slide count" });
-
-  try {
-    // 🧩 1. Decode Excel and extract readable text
-    const buffer = Buffer.from(base64Excel, "base64");
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-
-    let combinedText = "";
-    workbook.SheetNames.forEach((sheetName) => {
-      const sheet = workbook.Sheets[sheetName];
-      const sheetData = XLSX.utils.sheet_to_csv(sheet);
-      combinedText += `\n📄 Sheet: ${sheetName}\n${sheetData}\n`;
-    });
-
-    // 🧩 2. Generate slide content using Gemini (text only)
-    const prompt = `
-      You are creating PowerPoint slides from Excel data.
-      The user wants ${slides} slides.
-
-      Each slide must include:
-      - A clear title (<=10 words)
-      - 3–5 concise bullet points summarizing insights, totals, or patterns.
-
-      Here is the extracted Excel content:
-      ${combinedText}
-
-      Return only JSON in this structure:
-      [
-        { "title": "Slide 1", "bullets": ["point 1", "point 2", "point 3"] },
-        { "title": "Slide 2", "bullets": ["point 1", "point 2"] }
-      ]
-    `;
-
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" },
-    });
-
-    const text = await extractResponseText(result);
-    let parsed;
-
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      console.warn("⚠️ Gemini returned non-JSON, retrying with fallback...");
-      parsed = [{ title: "Summary", bullets: ["Could not parse Gemini output."] }];
-    }
-
-    // ✅ 3. Send slides back
-    res.json({ success: true, slides: parsed });
-  } catch (err) {
-    console.error("Excel Conversion failed:", err);
-    res.status(500).json({ error: "Excel Conversion failed: " + err.message });
-  }
-});
-
 
 // ---------------- Start Server ---------------- //
 const PORT = process.env.PORT || 5000;

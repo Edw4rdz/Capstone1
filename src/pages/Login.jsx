@@ -2,8 +2,12 @@ import React, { useState } from "react";
 import { FaEnvelope, FaLock } from "react-icons/fa";
 import loginImg from "../assets/loginImg.jpg";
 import "./login.css";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+
+// 🧠 Firebase imports
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -23,34 +27,36 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:5000/login", { email, password }, { timeout: 5000 });
+      // 🔥 Sign in user with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      if (res.data?.success) {
-        // Save user data to localStorage
-        const userData = {
-          name: res.data.user.name || "Unknown User",
-          email: res.data.user.email || email,
-          user_id: res.data.user.user_id || null,
-        };
-        localStorage.setItem("user", JSON.stringify(userData));
+      // 🔍 Optionally fetch user profile from Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
 
-        alert("Login successful!");
-        navigate("/dashboard");
-      } else {
-        alert(res.data?.message || "Invalid email or password.");
-      }
+      // 🧠 Save user data to localStorage (keep same structure as before)
+      const userData = {
+        name: userDoc.exists() ? userDoc.data().name : "Unknown User",
+        email: user.email,
+        user_id: user.uid,
+      };
+
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      alert("Login successful!");
+      navigate("/dashboard");
     } catch (err) {
-      console.error("Login error:", err);
-
+      console.error("Firebase login error:", err);
       let errorMessage = "Error logging in. Please try again.";
-      if (err.response) {
-        if (err.response.status === 404) {
-          errorMessage = "Server endpoint not found. Make sure backend is running.";
-        } else if (err.response.data?.message) {
-          errorMessage = err.response.data.message;
-        }
-      } else if (err.code === "ECONNABORTED") {
-        errorMessage = "Server timed out. Please try again.";
+
+      if (err.code === "auth/invalid-email") {
+        errorMessage = "Invalid email address.";
+      } else if (err.code === "auth/user-not-found") {
+        errorMessage = "No account found with this email.";
+      } else if (err.code === "auth/wrong-password") {
+        errorMessage = "Incorrect password.";
+      } else if (err.code === "auth/too-many-requests") {
+        errorMessage = "Too many failed attempts. Please try again later.";
       }
 
       alert(errorMessage);

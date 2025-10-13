@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaEnvelope, FaLock, FaUser } from "react-icons/fa";
-import axios from "axios";
 import signupImg from "../assets/signupImg.jpg";
 import "./signup.css";
+
+// 🔥 Firebase imports
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../firebase";
+import { doc, setDoc, runTransaction } from "firebase/firestore";
 
 export default function Signup() {
   const [fullName, setFullName] = useState("");
@@ -14,26 +18,24 @@ export default function Signup() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  // ✅ Form Validation
   const validateForm = () => {
-   if (!fullName.trim()) return "Full name is required.";
+    if (!fullName.trim()) return "Full name is required.";
+    if (!/^[A-Za-z\s]+$/.test(fullName))
+      return "Full name should contain only letters and spaces.";
 
-  // ❌ Prevent digits or special characters (only letters and spaces allowed)
-  if (!/^[A-Za-z\s]+$/.test(fullName))
-    return "Full name should contain only letters and spaces.";
+    if (!email.trim()) return "Email is required.";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[cC][oO][mM]$/;
+    if (!emailRegex.test(email)) return "Please enter a valid email.";
 
-  if (!email.trim()) return "Email is required.";
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[cC][oO][mM]$/;
-  if (!emailRegex.test(email)) return "Please re-enter your email.";
+    if (!password) return "Password is required.";
+    if (password.length < 6) return "Password must be at least 6 characters.";
+    if (/\s/.test(password)) return "Password must not contain spaces.";
 
-  if (!password) return "Password is required.";
-  if (password.length < 6) return "Password must be at least 6 characters.";
-
-  // 🚫 Prevent spaces in password
-  if (/\s/.test(password)) return "Password must not contain spaces.";
-
-  return "";
+    return "";
   };
 
+  // ✅ Handle Registration
   const handleRegister = async () => {
     const validationError = validateForm();
     if (validationError) {
@@ -43,44 +45,69 @@ export default function Signup() {
 
     setLoading(true);
     setError("");
+
     try {
-      const response = await axios.post("http://localhost:5000/register", {
-        name: fullName,
-        email,
-        password,
+      // 🔥 Step 1: Create user with Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log("✅ Firebase user created:", user.uid);
+
+      // 🔢 Step 2: Safely increment the user counter using Firestore transaction
+      const counterRef = doc(db, "metadata", "userCounter");
+
+      const newUserId = await runTransaction(db, async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
+        if (!counterDoc.exists()) {
+          transaction.set(counterRef, { count: 1 });
+          return 1;
+        }
+        const newCount = counterDoc.data().count + 1;
+        transaction.update(counterRef, { count: newCount });
+        return newCount;
       });
 
-      const data = response.data;
+      // 🧾 Step 3: Save user info in Firestore using numeric ID
+      await setDoc(doc(db, "users", newUserId.toString()), {
+        name: fullName,
+        email: email,
+        createdAt: new Date().toISOString(),
+        authUID: user.uid,
+      });
 
-      if (data.success) {
-        alert(data.message || "✅ Account created successfully!");
-        if (data.user) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-        } else {
-          localStorage.setItem("user", JSON.stringify({ name: fullName, email }));
-        }
-        navigate("/dashboard");
-      } else {
-        setError(data.message || "❌ Signup failed: Unknown error");
-      }
+      // 💾 Step 4: Store user info locally
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          name: fullName,
+          email: email,
+          user_id: newUserId,
+        })
+      );
+
+      alert(`✅ Account created successfully! (User #${newUserId})`);
+      navigate("/dashboard");
+
     } catch (error) {
-      console.error("❌ Signup error:", error);
+      console.error("❌ Firebase Signup Error:", error);
       let errorMessage = "An error occurred. Please try again.";
-      if (error.response?.status === 404) {
-        errorMessage = "Server endpoint not found. Ensure the backend is running at http://localhost:5000.";
-      } else if (error.response?.status === 401) {
-        errorMessage = error.response.data?.message || "Unauthorized. Check your credentials.";
-      } else if (error.code === "ECONNABORTED") {
-        errorMessage = "Server timed out. Please try again.";
-      } else if (error.response?.status === 400) {
-        errorMessage = error.response.data?.message || "Invalid input.";
+
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "This email is already registered.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email address.";
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Password should be at least 6 characters.";
+      } else if (error.code === "permission-denied") {
+        errorMessage = "Database permission denied. Check Firestore rules.";
       }
+
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ UI
   return (
     <div className="signup-page">
       <div className="signup-container">
