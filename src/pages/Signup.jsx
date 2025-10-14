@@ -67,20 +67,34 @@ export default function Signup() {
       });
 
       // 🧾 Step 3: Save user info in Firestore using numeric ID
-      await setDoc(doc(db, "users", newUserId.toString()), {
+      const numericDocRef = doc(db, "users", newUserId.toString());
+      await setDoc(numericDocRef, {
         name: fullName,
         email: email,
         createdAt: new Date().toISOString(),
         authUID: user.uid,
       });
 
-      // 💾 Step 4: Store user info locally
+      // 🔁 Step 4: ALSO write a mirror document keyed by the Firebase Auth UID
+      // This allows reads using user.uid (works with your existing security rules)
+      const uidDocRef = doc(db, "users", user.uid);
+      // We store the same basic fields plus reference to numeric id
+      await setDoc(uidDocRef, {
+        name: fullName,
+        email: email,
+        createdAt: new Date().toISOString(),
+        numericId: newUserId,
+        authUID: user.uid,
+      });
+
+      // 💾 Step 5: Store user info locally (cache)
       localStorage.setItem(
         "user",
         JSON.stringify({
           name: fullName,
           email: email,
           user_id: newUserId,
+          authUID: user.uid,
         })
       );
 

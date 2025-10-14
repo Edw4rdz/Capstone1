@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
+import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { db } from "../firebase"; // adjust path if needed
 import "./dashboard.css";
 import "font-awesome/css/font-awesome.min.css";
 
@@ -15,47 +25,99 @@ const tools = [
 export default function Dashboard() {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState("Loading...");
 
-  const loadUserData = () => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        console.log("Parsed User from localStorage:", user); // Enhanced debug log
-        if (user && user.name) {
-          setUserName(user.name); // Set the actual name
-        } else {
-          console.warn("No name found in user data:", user);
-          setUserName("Unknown User"); // Fallback
-          localStorage.removeItem("user"); // Clear invalid data
-        }
-      } catch (error) {
-        console.error("Invalid JSON in localStorage:", error);
-        localStorage.removeItem("user"); // Clear invalid data
-        setUserName("Unknown User"); // Fallback for parsing errors
-      }
-    } else {
-      console.log("No user data found in localStorage");
-      setUserName("Unknown User"); // Default if no data
+  // Try to read cached user first (fast)
+  const tryCachedUser = () => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.name) return parsed;
+    } catch (e) {
+      // ignore parse errors
     }
+    return null;
   };
 
   useEffect(() => {
-    loadUserData();
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setUserName("Unknown User");
+        return;
+      }
+
+      // 1) Quick: try cached localStorage user
+      const cached = tryCachedUser();
+      if (cached && cached.name) {
+        setUserName(cached.name);
+      } else {
+        setUserName("Loading...");
+      }
+
+      try {
+        // 2) Try to get a document with ID = auth.uid (covers the case where users were stored by uid)
+        const byUidRef = doc(db, "users", user.uid);
+        const byUidSnap = await getDoc(byUidRef);
+
+        if (byUidSnap.exists()) {
+          const data = byUidSnap.data();
+          const name = data.name || data.fullName || data.displayName || "User";
+          setUserName(name);
+          // cache for faster load next time
+          localStorage.setItem("user", JSON.stringify({ name, email: data.email || user.email, user_id: user.uid }));
+          return;
+        }
+
+        // 3) If not found, query for document where authUID == user.uid (covers numeric-id storage)
+        const usersCol = collection(db, "users");
+        const q = query(usersCol, where("authUID", "==", user.uid));
+        const qSnap = await getDocs(q);
+
+        if (!qSnap.empty) {
+          // pick the first match
+          const docSnap = qSnap.docs[0];
+          const data = docSnap.data();
+          const name = data.name || data.fullName || data.displayName || "User";
+          setUserName(name);
+          // cache user with numeric id (docSnap.id) and name
+          localStorage.setItem("user", JSON.stringify({ name, email: data.email || user.email, user_id: docSnap.id }));
+          return;
+        }
+
+        // 4) If still not found, fallback to firebase auth displayName or email
+        const fallback = user.displayName || user.email || "User";
+        setUserName(fallback);
+        localStorage.setItem("user", JSON.stringify({ name: fallback, email: user.email, user_id: user.uid }));
+      } catch (err) {
+        console.error("Error fetching user info for dashboard:", err);
+        // keep whatever we had (cached or fallback)
+        if (!userName || userName === "Loading...") {
+          setUserName(user.displayName || user.email || "User");
+        }
+      }
+    });
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const confirmLogout = window.confirm("Are you sure you want to log out?");
     if (!confirmLogout) return;
 
     setLoggingOut(true);
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-
-    setTimeout(() => {
+    try {
+      const auth = getAuth();
+      await signOut(auth);
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("user");
       navigate("/login");
-    }, 1200);
+    } catch (err) {
+      console.error("Logout error:", err);
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -105,7 +167,7 @@ export default function Dashboard() {
                 <div className="tool-card">
                   <div className={`tool-icon ${tool.colorClass}`}>
                     <i className={`fa ${tool.icon}`} />
-                  </div> 
+                  </div>
                   <h3 className="tool-title">{tool.title}</h3>
                   <p className="tool-desc">{tool.desc}</p>
                   <span className="tool-arrow"><i className="fa fa-arrow-right" /></span>
