@@ -3,11 +3,13 @@ import { Link, useNavigate } from "react-router-dom"; // Added useNavigate for l
 import { FaSignOutAlt, FaUpload } from "react-icons/fa"; // Added icons for logout and upload
 import "./exceltoppt.css"; // keep your CSS
 import "./Dashboard"; // Sidebar + Global
-import { convertExcel, downloadPPTX } from "../api";
+import PptxGen from "pptxgenjs";
+import { convertExcel } from "../api";
 
 export default function ExcelToPPT() {
   const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState("");
+  const [slidesCount, setSlidesCount] = useState(8); // <-- new state for number of slides
   const fileInputRef = useRef(null);
   const navigate = useNavigate(); // For logout navigation
   const [loggingOut, setLoggingOut] = useState(false);
@@ -43,37 +45,112 @@ export default function ExcelToPPT() {
 
   const handleDragOver = (e) => e.preventDefault();
 
-  // Convert Excel to PPT
-const handleDownload = async () => {
-  if (!file) {
-    alert("Upload an Excel file first!");
-    return;
-  }
+  // ---------------- Convert Excel → PPTX ----------------
+  const handleDownload = async () => {
+    if (!file) {
+      alert("Upload an Excel file first!");
+      return;
+    }
 
-  try {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Excel = e.target.result.split(",")[1];
-      const slides = 8;
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Excel = e.target.result.split(",")[1];
 
-      // ✅ send JSON, not FormData
-     const { data } = await convertExcel({ base64Excel, slides });
+        // Use dynamic slidesCount state instead of hardcoded 8
+        const slidesCountValue = slidesCount;
 
+        // Call backend API to generate structured slide data
+        const { data } = await convertExcel({ base64Excel, slides: slidesCountValue });
 
-      if (data.success && data.slides) {
-        await downloadPPTX(data.slides);
-      } else {
-        alert("Excel conversion failed: Invalid slide data.");
-      }
-    };
-    reader.readAsDataURL(file);
-  } catch (err) {
-    console.error("Excel conversion error:", err);
-    alert("Excel conversion failed. Check console for details.");
-  }
-};
+        if (!data.success || !Array.isArray(data.slides)) {
+          const msg = data?.error || "Backend returned invalid slide data";
+          console.error("Invalid slide data:", data.slides);
+          return alert("Conversion failed: " + msg);
+        }
 
+        const slideData = data.slides;
 
+        // Initialize PPTX
+        const pptx = new PptxGen();
+        pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
+        pptx.layout = "A4";
+
+        slideData.forEach((slide, index) => {
+          const pptSlide = pptx.addSlide();
+
+          // Slide title
+          pptSlide.addText(slide.title || `Slide ${index + 1}`, {
+            x: 0.5,
+            y: 0.3,
+            w: 10.5,
+            h: 0.8,
+            fontSize: 28,
+            bold: true,
+            color: "1F497D",
+            align: "center",
+          });
+
+          // Bullets
+          if (slide.bullets?.length) {
+            pptSlide.addText(slide.bullets.map((b) => `• ${b}`).join("\n"), {
+              x: 0.5,
+              y: 1.5,
+              w: 5.5,
+              h: 4.5,
+              fontSize: 18,
+              color: "333333",
+              lineSpacing: 28,
+              bullet: true,
+              valign: "top",
+              align: "left",
+            });
+          }
+
+          // Optional image
+          if (slide.imageBase64) {
+            pptSlide.addImage({
+              data: `data:image/png;base64,${slide.imageBase64}`,
+              x: 6.2,
+              y: 1.5,
+              w: 4.5,
+              h: 4.5,
+            });
+          } else {
+            pptSlide.addText("🖼 No image generated", {
+              x: 6.2,
+              y: 3.5,
+              w: 4.5,
+              h: 1,
+              fontSize: 16,
+              color: "FF0000",
+              italic: true,
+              align: "center",
+              valign: "middle",
+            });
+          }
+        });
+
+        // Download PPTX
+        const blob = await pptx.write("blob");
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${file.name.replace(/\.(xlsx|xls)/i, "")}_converted.pptx`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        alert("✅ PPTX conversion completed!");
+      };
+
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Excel conversion error:", err);
+      alert("❌ Excel conversion failed. Check console for details.");
+    }
+  };
+
+  // ---------------- Logout ----------------
   const handleLogout = () => {
     const confirmLogout = window.confirm("Are you sure you want to log out?");
     if (!confirmLogout) return;
@@ -151,8 +228,8 @@ const handleDownload = async () => {
                   onDragOver={handleDragOver}
                   onClick={() => fileInputRef.current.click()}
                 >
-                <div className="uploade-area">
-                  <div className="uploade-icon">⬆</div>
+                  <div className="uploade-area">
+                    <div className="uploade-icon">⬆</div>
                     {file ? (
                       <p>
                         <strong>{fileName}</strong> loaded
@@ -188,7 +265,9 @@ const handleDownload = async () => {
                 </div>
 
                 {/* Download button */}
-                
+                <button className="convert-btn" onClick={handleDownload}>
+                  Convert to PowerPoint
+                </button>
               </section>
 
               {/* Customize Presentation */}
@@ -215,8 +294,14 @@ const handleDownload = async () => {
                 <div className="customize-grid">
                   <div className="input-group">
                     <label>Number of Slides</label>
-                    <input type="range" min="3" max="15" defaultValue="8" />
-                    <span>8 slides</span>
+                    <input
+                      type="range"
+                      min="3"
+                      max="20"
+                      value={slidesCount} // <-- bind to state
+                      onChange={(e) => setSlidesCount(parseInt(e.target.value))} // <-- update state
+                    />
+                    <span>{slidesCount} slides</span> {/* <-- dynamic display */}
                   </div>
 
                   <div className="input-group">
@@ -239,10 +324,6 @@ const handleDownload = async () => {
                     </select>
                   </div>
                 </div>
-
-                <button className="convert-btn" onClick={handleDownload}>
-  Convert to PowerPoint
-</button>
               </section>
             </div>
 

@@ -1,43 +1,22 @@
 import React, { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Added useNavigate for logout
-import { FaSignOutAlt, FaUpload } from "react-icons/fa"; // Added icons for logout and upload
-import "./texttoppt.css"; // keep your existing CSS
+import { Link, useNavigate } from "react-router-dom"; // For logout
+import { FaSignOutAlt, FaUpload } from "react-icons/fa"; // Icons
+import "./texttoppt.css"; // Keep your existing CSS
 import "./Dashboard"; // Sidebar + Global
-import { convertText, downloadPPTX } from "../api";
-
+import { convertText } from "../api";
+import PptxGen from "pptxgenjs";
 
 export default function TextToPPT() {
   const [fileContent, setFileContent] = useState("");
   const [fileName, setFileName] = useState("");
   const [slides, setSlides] = useState(8);
+  const [isLoading, setIsLoading] = useState(false);
+  const [slidePreviews, setSlidePreviews] = useState([]);
   const fileInputRef = useRef(null);
-  const navigate = useNavigate(); // For logout navigation
+  const navigate = useNavigate(); 
   const [loggingOut, setLoggingOut] = useState(false);
-const handleConvert = async () => {
-  if (!fileContent.trim()) {
-    alert("Please upload a .txt file first!");
-    return;
-  }
 
-  try {
-    const response = await convertText({
-      textContent: fileContent,
-      slides: slides,
-    });
-
-    if (response.data.success && response.data.slides) {
-      await downloadPPTX(response.data.slides);
-      alert("✅ PPTX file generated successfully!");
-    } else {
-      alert("❌ Conversion failed: Invalid response from AI.");
-    }
-  } catch (err) {
-    console.error("Text → PPT conversion failed:", err);
-    alert("❌ Conversion failed. Please try again.");
-  }
-};
-
-  // File upload handlers
+  // ---------------- File Upload Handlers ----------------
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -61,21 +40,132 @@ const handleConvert = async () => {
 
   const handleDragOver = (e) => e.preventDefault();
 
-  // ✅ Download text file
-  const handleDownload = () => {
-    if (!fileContent) {
-      alert("No content to download!");
+  // ---------------- PPT Conversion ----------------
+  const handleConvert = async () => {
+    if (!fileContent.trim()) {
+      alert("Please upload a .txt file first!");
       return;
     }
-    const blob = new Blob([fileContent], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName || "converted.txt";
-    a.click();
-    URL.revokeObjectURL(url);
+
+    setIsLoading(true);
+    setSlidePreviews([]);
+
+    try {
+      // ---------------- Step 1: Generate structured slide content ----------------
+      const response = await convertText({
+        textContent: fileContent,
+        slides,
+      });
+
+      if (!response.data.success || !Array.isArray(response.data.slides)) {
+        const msg = response.data?.error || "Backend returned invalid data";
+        console.error("Invalid slide data:", response.data.slides);
+        return alert("Conversion failed: " + msg);
+      }
+
+      // ---------------- Step 2: Initialize slide previews ----------------
+      const slideData = response.data.slides.map((slide) => ({
+        ...slide,
+        loading: true,
+      }));
+      setSlidePreviews(slideData);
+
+      alert(
+        "Slides generated. Images are loading in the background, please wait..."
+      );
+
+      // ---------------- Step 3: Mark slides as loaded ----------------
+      const loadedSlides = slideData.map((slide) => ({
+        ...slide,
+        loading: false,
+        imageBase64: slide.imageBase64 || null,
+      }));
+
+      setSlidePreviews(loadedSlides);
+
+      // ---------------- Step 4: Generate PPTX ----------------
+      const pptx = new PptxGen();
+      pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
+      pptx.layout = "A4";
+
+      loadedSlides.forEach((slide, index) => {
+        const pptSlide = pptx.addSlide();
+
+        // Title
+        pptSlide.addText(slide.title || `Slide ${index + 1}`, {
+          x: 0.5,
+          y: 0.3,
+          w: 10.5,
+          h: 0.8,
+          fontSize: 28,
+          bold: true,
+          color: "1F497D",
+          align: "center",
+        });
+
+        // Bullets
+        if (slide.bullets?.length) {
+          pptSlide.addText(slide.bullets.map((b) => `• ${b}`).join("\n"), {
+            x: 0.5,
+            y: 1.5,
+            w: 5.5,
+            h: 4.5,
+            fontSize: 18,
+            color: "333333",
+            lineSpacing: 28,
+            bullet: true,
+            valign: "top",
+            align: "left",
+          });
+        }
+
+        // Optional image
+        if (slide.imageBase64) {
+          pptSlide.addImage({
+            data: `data:image/png;base64,${slide.imageBase64}`,
+            x: 6.2,
+            y: 1.5,
+            w: 4.5,
+            h: 4.5,
+          });
+        } else {
+          pptSlide.addText(
+            slide.loading ? "🖼 Loading image..." : "🖼 No image generated",
+            {
+              x: 6.2,
+              y: 3.5,
+              w: 4.5,
+              h: 1,
+              fontSize: 16,
+              color: slide.loading ? "0000FF" : "FF0000",
+              italic: true,
+              align: "center",
+              valign: "middle",
+            }
+          );
+        }
+      });
+
+      // ---------------- Step 5: Download PPTX ----------------
+      const blob = await pptx.write("blob");
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${fileName.replace(/\.txt$/i, "")}_converted.pptx`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      alert("✅ PPTX generated and downloaded successfully!");
+    } catch (err) {
+      console.error("Text → PPT conversion failed:", err);
+      const msg = err.response?.data?.error || err.message || "Unknown backend error";
+      alert("❌ Conversion failed: " + msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // ---------------- Logout ----------------
   const handleLogout = () => {
     const confirmLogout = window.confirm("Are you sure you want to log out?");
     if (!confirmLogout) return;
@@ -84,11 +174,10 @@ const handleConvert = async () => {
     localStorage.removeItem("user");
     sessionStorage.removeItem("user");
 
-    setTimeout(() => {
-      navigate("/login");
-    }, 1200);
+    setTimeout(() => navigate("/login"), 1200);
   };
 
+  // ---------------- Render UI ----------------
   return (
     <div className="dashboard">
       {/* Sidebar */}
@@ -117,7 +206,6 @@ const handleConvert = async () => {
             </Link>
           </div>
 
-          {/* Logout at bottom */}
           <div className="bottom-links">
             <div className="logout-btn" onClick={handleLogout}>
               <FaSignOutAlt className="icon" /> Logout
@@ -130,18 +218,14 @@ const handleConvert = async () => {
       {/* Main Content */}
       <main className="main">
         <div className="container">
-          {/* ✅ Header */}
           <header className="headert">
             <div className="headert-icon">TXT</div>
             <div>
               <h1>Text to PPT Converter</h1>
-              <p>
-                Transform your plain text into engaging PowerPoint presentations
-                </p>
+              <p>Transform your plain text into engaging PowerPoint presentations</p>
             </div>
           </header>
-          
-          {/* Content */}
+
           <div className="content-grid">
             <div className="main-cards">
               {/* File Upload Card */}
@@ -160,12 +244,14 @@ const handleConvert = async () => {
                       <p>
                         <strong>{fileName}</strong> loaded
                       </p>
-                    ) : 
+                    ) : (
                       <h3>
                         Drop your .txt file here or{" "}
-                        <button className="browset"><h2>browse</h2></button>
+                        <button className="browset">
+                          <h2>browse</h2>
+                        </button>
                       </h3>
-                    }
+                    )}
                     <p>Supports .txt files up to 25MB</p>
                   </div>
                   <input
@@ -227,9 +313,8 @@ const handleConvert = async () => {
                 </div>
 
                 <button className="convertt-btn" onClick={handleConvert}>
-  Convert to Presentation
-</button>
-
+                  Convert to Presentation
+                </button>
               </section>
             </div>
 

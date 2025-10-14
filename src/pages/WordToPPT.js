@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PptxGen from "pptxgenjs";
-import { convertWord } from "../api"; // Axios call to your backend
+import { convertWord } from "../api"; // Axios call to backend
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import "./wordtoppt.css";
 import "font-awesome/css/font-awesome.min.css";
@@ -12,6 +12,7 @@ export default function WordToPPT() {
   const [file, setFile] = useState(null);
   const [slides, setSlides] = useState(15);
   const [isLoading, setIsLoading] = useState(false);
+  const [slidePreviews, setSlidePreviews] = useState([]); // { title, bullets, imageBase64, loading }
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -34,6 +35,7 @@ export default function WordToPPT() {
     if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
 
     setIsLoading(true);
+    setSlidePreviews([]); // reset previews
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -42,9 +44,8 @@ export default function WordToPPT() {
       const base64Word = reader.result.split(",")[1];
 
       try {
+        // 1️⃣ Call backend API
         const response = await convertWord({ base64Word, slides });
-
-        // ✅ FIX: extract slides array from response
         const slideData = response.data.slides;
 
         if (!Array.isArray(slideData)) {
@@ -53,32 +54,91 @@ export default function WordToPPT() {
           return alert("Conversion failed: " + msg);
         }
 
+        // 2️⃣ Initialize slide previews with loading state
+        const previews = slideData.map((s) => ({ ...s, loading: true }));
+        setSlidePreviews(previews);
+
+        alert(
+          "Slides generated. Images are loading in the background, please wait..."
+        );
+
+        // 3️⃣ Wait for each image to "load" asynchronously
+        const loadedSlides = await Promise.all(
+          slideData.map(async (slide) => {
+            if (slide.imageBase64) {
+              return { ...slide, loading: false };
+            } else {
+              return { ...slide, imageBase64: null, loading: false };
+            }
+          })
+        );
+
+        setSlidePreviews(loadedSlides);
+
+        // 4️⃣ Generate PPTX
         const pptx = new PptxGen();
         pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
         pptx.layout = "A4";
 
-        slideData.forEach((slide) => {
+        loadedSlides.forEach((slide, index) => {
           const pptSlide = pptx.addSlide();
-          pptSlide.addText(slide.title || "Untitled", {
+
+          // Title
+          pptSlide.addText(slide.title || `Slide ${index + 1}`, {
             x: 0.5,
-            y: 0.5,
-            w: "90%",
-            h: 1,
-            fontSize: 24,
+            y: 0.3,
+            w: 10.5,
+            h: 0.8,
+            fontSize: 28,
             bold: true,
-            color: "363636",
+            color: "1F497D",
+            align: "center",
           });
-          pptSlide.addText(slide.bullets?.join("\n") || "", {
-            x: 0.5,
-            y: 1.5,
-            w: "90%",
-            h: 6,
-            fontSize: 18,
-            bullet: true,
-            color: "363636",
-          });
+
+          // Bullets
+          if (slide.bullets?.length) {
+            pptSlide.addText(slide.bullets.map((b) => `• ${b}`).join("\n"), {
+              x: 0.5,
+              y: 1.5,
+              w: 5.5,
+              h: 4.5,
+              fontSize: 18,
+              color: "333333",
+              lineSpacing: 28,
+              bullet: true,
+              valign: "top",
+              align: "left",
+            });
+          }
+
+          // Image
+          if (slide.imageBase64) {
+            pptSlide.addImage({
+              data: `data:image/png;base64,${slide.imageBase64}`,
+              x: 6.2,
+              y: 1.5,
+              w: 4.5,
+              h: 4.5,
+            });
+          } else {
+            pptSlide.addText(
+              slide.loading ? "🖼 Loading image..." : "🖼 No image generated",
+              {
+                x: 6.2,
+                y: 3.5,
+                w: 4.5,
+                h: 1,
+                fontSize: 16,
+                color: slide.loading ? "0000FF" : "FF0000",
+                italic: true,
+                align: "center",
+                valign: "middle",
+              }
+            );
+          }
         });
 
+        // 5️⃣ Download PPTX
         const blob = await pptx.write("blob");
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -87,7 +147,7 @@ export default function WordToPPT() {
         link.click();
         URL.revokeObjectURL(url);
 
-        alert("✅ Conversion successful! PPTX downloaded.");
+        alert("Conversion done! PPTX downloaded.");
       } catch (err) {
         console.error("Backend conversion error:", err);
         const msg = err.response?.data?.error || err.message || "Unknown backend error";
@@ -115,6 +175,7 @@ export default function WordToPPT() {
 
   return (
     <div className="ai-dashboard">
+      {/* Sidebar identical to PDFToPPT */}
       <aside className="ai-sidebar">
         <div className="ai-logo">
           <i className="fa fa-magic"></i>
@@ -147,6 +208,7 @@ export default function WordToPPT() {
         </nav>
       </aside>
 
+      {/* Main content */}
       <main className="mainw">
         <div className="containerw">
           <header className="header">
@@ -158,6 +220,7 @@ export default function WordToPPT() {
           </header>
 
           <div className="contentw-grid">
+            {/* Left Column: upload + customization */}
             <div className="ai-left">
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Word Document</h2>
@@ -206,6 +269,7 @@ export default function WordToPPT() {
               </div>
             </div>
 
+            {/* Right Column: instructions */}
             <div className="ai-right">
               <div className="ai-info-box">
                 <h3>Smart Conversion</h3>
