@@ -98,18 +98,6 @@ export default function Login() {
                 disabled={loading}
               />
             </div>
-
-            <div className="show-password">
-              <input
-                type="checkbox"
-                id="showPassword"
-                checked={showPassword}
-                onChange={() => setShowPassword(!showPassword)}
-                disabled={loading}
-              />
-              <label htmlFor="showPassword"> Show Password</label>
-            </div>
-
             <button type="submit" className="login-btn" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
             </button>
