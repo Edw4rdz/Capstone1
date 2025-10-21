@@ -35,6 +35,7 @@ body {
   flex-direction: column;
   box-shadow: 2px 0 8px rgba(0,0,0,0.08);
 }
+
 /* Upload Template Button */
 .upload-btn {
   display: flex;
@@ -48,13 +49,20 @@ body {
   transition: background-color 0.2s;
 }
 
-
 .dashboard .sidebar .logo {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 20px;
   margin-bottom: 30px;
+}
+
+/* ✅ Logo image styling */
+.slideit-logo {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .dashboard .sidebar nav a {
@@ -73,16 +81,17 @@ body {
   border-left: 4px solid #3b5673;
   color: #fff;
 }
+
 /* Logout Button */
 .bottom-links {
-  margin-top: auto; /* Pushes logout to the bottom */
-  text-align: center; /* Centers the logout button */
+  margin-top: auto;
+  text-align: center;
 }
 
 .logout-btn {
   display: flex;
   align-items: center;
-  justify-content: center; /* Centers content horizontally */
+  justify-content: center;
   gap: 8px;
   padding: 12px 20px;
   color: #d1d5db;
@@ -209,7 +218,7 @@ body {
 .dashboard .tool-icon.plus { background: #8b5cf6; }   /* Purple for AI */
 .dashboard .tool-icon.pdf { background: #ef4444; }    /* Red for PDF */
 .dashboard .tool-icon.word { background: #2563eb; }   /* Blue for Word */
-.dashboard .tool-icon.text { background: #e9eb7b; }   /* Green for Text */
+.dashboard .tool-icon.text { background: #e9eb7b; }   /* Yellow for Text */
 .dashboard .tool-icon.excel { background: #22c55e; }  /* Bright green for Excel */
 
 .dashboard .tool-title {

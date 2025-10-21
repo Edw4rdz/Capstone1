@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import EditPreview from './pages/EditPreview';
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -27,6 +28,8 @@ export default function App() {
         <Route path="/exceltoppt" element={<ExcelToPPT />} />
         <Route path="/conversion" element={<Conversions />} />
         <Route path="/logout" element={<Logout />} />
+        <Route path="/ai-generator" element={<AIGenerator />} />
+        <Route path="/edit-preview" element={<EditPreview />} />
         <Route path="/uploadTemplate" element={<UploadTemplate />} />
         <Route path="*" element={<h1>404 - Page Not Found</h1>} />
       </Routes>

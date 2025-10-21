@@ -1,0 +1,108 @@
+/* src/components/edit-preview.css */
+
+.edit-preview-page {
+  font-family: "Poppins", sans-serif;
+  background-color: #f7f8fa;
+  min-height: 100vh;
+}
+
+.edit-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.edit-preview-header h1 {
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 15px;
+}
+
+.back-btn, .download-btn-main {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.back-btn {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.back-btn:hover {
+  background: #e0e0e0;
+}
+
+.download-btn-main {
+  background: #a830ba;
+  color: white;
+}
+
+.download-btn-main:hover {
+  background: #8a249c;
+}
+
+.edit-preview-content {
+  padding: 30px 40px;
+}
+
+/* We can reuse the preview-box style from ai-generator.css */
+/* Or define a new one */
+.preview-box-full {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* --- ADD THIS TO ai-generator.css --- */
+/* Style for the new button on the generator page */
+
+.preview-edit-btn {
+  background: #28a745; /* Green color for "Go" */
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.preview-edit-btn:hover {
+  background: #218838;
+}
+
+.generation-complete-box {
+  border: 2px dashed #28a745;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.generation-complete-box h3 {
+  color: #28a745;
+  margin-bottom: 10px;
+}
