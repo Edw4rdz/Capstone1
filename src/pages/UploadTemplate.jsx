@@ -12,9 +12,11 @@ export default function UploadTemplate() {
   const [message, setMessage] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Templates
   const [templates, setTemplates] = useState([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState(
+    JSON.parse(localStorage.getItem("selectedTemplate")) || null
+  );
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -48,9 +50,7 @@ export default function UploadTemplate() {
       const response = await axios.post(
         "http://localhost:5000/upload-template",
         formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
       setMessage(response.data.message || "Template uploaded successfully!");
       setFile(null);
@@ -67,24 +67,14 @@ export default function UploadTemplate() {
     setLoggingOut(true);
     localStorage.removeItem("user");
     sessionStorage.removeItem("user");
-    setTimeout(() => {
-      window.location.href = "/login";
-    }, 1200);
+    setTimeout(() => (window.location.href = "/login"), 1200);
   };
 
-  // Select template → open editable link
-  const handleSelectTemplate = async (id) => {
-    try {
-      const res = await axios.post(`http://localhost:5000/templates/use/${id}`);
-      if (res.data.success && res.data.link) {
-        window.open(res.data.link, "_blank", "noopener,noreferrer");
-      } else {
-        alert("Failed to open template.");
-      }
-    } catch (err) {
-      console.error("Error selecting template:", err);
-      alert("Failed to open template.");
-    }
+  // 🧩 Select template + persist
+  const handleSelectTemplate = (tpl) => {
+    setSelectedTemplate(tpl);
+    localStorage.setItem("selectedTemplate", JSON.stringify(tpl));
+    alert(`✅ Selected "${tpl.name}" — it will be used in EditPreview.`);
   };
 
   return (
@@ -124,22 +114,19 @@ export default function UploadTemplate() {
             <p className="subtitle">Upload a custom PPTX design file</p>
 
             <input type="file" accept=".ppt,.pptx" onChange={handleFileChange} />
-
             {preview && (
               <div className="preview">
                 <p>Preview:</p>
                 <iframe src={preview} title="Template Preview" width="100%" height="200px" />
               </div>
             )}
-
             <button onClick={handleUpload} disabled={uploading}>
               {uploading ? "Uploading..." : "Upload Template"}
             </button>
-
             {message && <p className="message">{message}</p>}
           </div>
 
-          {/* Prebuilt Templates */}
+          {/* Templates */}
           <div className="prebuilt-section">
             <h3>Choose a Pre-Built Template</h3>
             {loadingTemplates ? (
@@ -147,14 +134,15 @@ export default function UploadTemplate() {
             ) : (
               <div className="template-grid">
                 {templates.map((tpl) => (
-                  <div key={tpl.id} className="template-card">
-                    <img
-                      src={tpl.thumbnail}
-                      alt={tpl.name}
-                      onError={(e) => (e.target.style.display = "none")}
-                    />
+                  <div
+                    key={tpl.id}
+                    className={`template-card ${
+                      selectedTemplate?.id === tpl.id ? "selected" : ""
+                    }`}
+                  >
+                    <img src={tpl.thumbnail} alt={tpl.name} />
                     <p>{tpl.name}</p>
-                    <button onClick={() => handleSelectTemplate(tpl.id)}>Use</button>
+                    <button onClick={() => handleSelectTemplate(tpl)}>Use</button>
                   </div>
                 ))}
               </div>

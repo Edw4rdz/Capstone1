@@ -12,6 +12,7 @@ export default function TextToPPT() {
   const [slides, setSlides] = useState(8);
   const [isLoading, setIsLoading] = useState(false);
   const [slidePreviews, setSlidePreviews] = useState([]);
+  const [convertedSlides, setConvertedSlides] = useState(null); // ✅ Added state
   const fileInputRef = useRef(null);
   const navigate = useNavigate(); 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -51,7 +52,7 @@ export default function TextToPPT() {
     setSlidePreviews([]);
 
     try {
-      // ---------------- Step 1: Generate structured slide content ----------------
+      // Step 1: Generate structured slide content
       const response = await convertText({
         textContent: fileContent,
         slides,
@@ -63,7 +64,7 @@ export default function TextToPPT() {
         return alert("Conversion failed: " + msg);
       }
 
-      // ---------------- Step 2: Initialize slide previews ----------------
+      // Step 2: Initialize slide previews
       const slideData = response.data.slides.map((slide) => ({
         ...slide,
         loading: true,
@@ -74,7 +75,7 @@ export default function TextToPPT() {
         "Slides generated. Images are loading in the background, please wait..."
       );
 
-      // ---------------- Step 3: Mark slides as loaded ----------------
+      // Step 3: Mark slides as loaded
       const loadedSlides = slideData.map((slide) => ({
         ...slide,
         loading: false,
@@ -82,8 +83,9 @@ export default function TextToPPT() {
       }));
 
       setSlidePreviews(loadedSlides);
+      setConvertedSlides(loadedSlides); // ✅ Store slides for edit-preview button
 
-      // ---------------- Step 4: Generate PPTX ----------------
+      // Step 4: Generate PPTX
       const pptx = new PptxGen();
       pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
       pptx.layout = "A4";
@@ -146,7 +148,7 @@ export default function TextToPPT() {
         }
       });
 
-      // ---------------- Step 5: Download PPTX ----------------
+      // Step 5: Download PPTX
       const blob = await pptx.write("blob");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -315,6 +317,22 @@ export default function TextToPPT() {
                 <button className="convertt-btn" onClick={handleConvert}>
                   Convert to Presentation
                 </button>
+
+                {/* ✅ Edit & Preview Button (appears after conversion) */}
+                {convertedSlides && (
+                  <div className="after-convert-actions">
+                    <button
+                      className="edit-preview-btn"
+                      onClick={() =>
+                        navigate("/edit-preview", {
+                          state: { slides: convertedSlides, topic: fileName },
+                        })
+                      }
+                    >
+                      📝 Edit & Preview Slides
+                    </button>
+                  </div>
+                )}
               </section>
             </div>
 

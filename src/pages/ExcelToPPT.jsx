@@ -1,18 +1,20 @@
 import React, { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Added useNavigate for logout
-import { FaSignOutAlt, FaUpload } from "react-icons/fa"; // Added icons for logout and upload
-import "./exceltoppt.css"; // keep your CSS
-import "./Dashboard"; // Sidebar + Global
-import PptxGen from "pptxgenjs";
+import { Link, useNavigate } from "react-router-dom";
+import { FaSignOutAlt, FaUpload } from "react-icons/fa";
+import "./exceltoppt.css";
+import "./Dashboard";
 import { convertExcel } from "../api";
 
 export default function ExcelToPPT() {
   const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState("");
-  const [slidesCount, setSlidesCount] = useState(8); // <-- new state for number of slides
+  const [slidesCount, setSlidesCount] = useState(8);
+  const [convertedSlides, setConvertedSlides] = useState(null);
+  const [topic, setTopic] = useState("");
   const fileInputRef = useRef(null);
-  const navigate = useNavigate(); // For logout navigation
+  const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Handle file selection
   const handleFileUpload = (event) => {
@@ -33,135 +35,60 @@ export default function ExcelToPPT() {
     }
   };
 
-  // Handle drag-drop upload
   const handleDrop = (e) => {
     e.preventDefault();
     const droppedFile = e.dataTransfer.files[0];
     if (!droppedFile) return;
-
     setFile(droppedFile);
     setFileName(droppedFile.name);
   };
 
   const handleDragOver = (e) => e.preventDefault();
 
-  // ---------------- Convert Excel → PPTX ----------------
-  const handleDownload = async () => {
+  // 🚀 Convert Excel → Slide Data (for edit/preview)
+  const handleConvert = async () => {
     if (!file) {
-      alert("Upload an Excel file first!");
+      alert("Please upload an Excel file first!");
       return;
     }
+
+    setIsLoading(true);
 
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64Excel = e.target.result.split(",")[1];
-
-        // Use dynamic slidesCount state instead of hardcoded 8
-        const slidesCountValue = slidesCount;
-
-        // Call backend API to generate structured slide data
-        const { data } = await convertExcel({ base64Excel, slides: slidesCountValue });
-
-        if (!data.success || !Array.isArray(data.slides)) {
-          const msg = data?.error || "Backend returned invalid slide data";
-          console.error("Invalid slide data:", data.slides);
-          return alert("Conversion failed: " + msg);
-        }
-
-        const slideData = data.slides;
-
-        // Initialize PPTX
-        const pptx = new PptxGen();
-        pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
-        pptx.layout = "A4";
-
-        slideData.forEach((slide, index) => {
-          const pptSlide = pptx.addSlide();
-
-          // Slide title
-          pptSlide.addText(slide.title || `Slide ${index + 1}`, {
-            x: 0.5,
-            y: 0.3,
-            w: 10.5,
-            h: 0.8,
-            fontSize: 28,
-            bold: true,
-            color: "1F497D",
-            align: "center",
-          });
-
-          // Bullets
-          if (slide.bullets?.length) {
-            pptSlide.addText(slide.bullets.map((b) => `• ${b}`).join("\n"), {
-              x: 0.5,
-              y: 1.5,
-              w: 5.5,
-              h: 4.5,
-              fontSize: 18,
-              color: "333333",
-              lineSpacing: 28,
-              bullet: true,
-              valign: "top",
-              align: "left",
-            });
-          }
-
-          // Optional image
-          if (slide.imageBase64) {
-            pptSlide.addImage({
-              data: `data:image/png;base64,${slide.imageBase64}`,
-              x: 6.2,
-              y: 1.5,
-              w: 4.5,
-              h: 4.5,
-            });
-          } else {
-            pptSlide.addText("🖼 No image generated", {
-              x: 6.2,
-              y: 3.5,
-              w: 4.5,
-              h: 1,
-              fontSize: 16,
-              color: "FF0000",
-              italic: true,
-              align: "center",
-              valign: "middle",
-            });
-          }
+        const { data } = await convertExcel({
+          base64Excel,
+          slides: slidesCount,
         });
 
-        // Download PPTX
-        const blob = await pptx.write("blob");
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${file.name.replace(/\.(xlsx|xls)/i, "")}_converted.pptx`;
-        link.click();
-        URL.revokeObjectURL(url);
+        if (!data.success || !Array.isArray(data.slides)) {
+          alert("Conversion failed: " + (data.error || "Invalid response"));
+          return;
+        }
 
-        alert("✅ PPTX conversion completed!");
+        setConvertedSlides(data.slides);
+        setTopic(file.name.replace(/\.(xlsx|xls)/i, ""));
+        alert("✅ Conversion successful! You can now preview or edit.");
       };
 
       reader.readAsDataURL(file);
     } catch (err) {
-      console.error("Excel conversion error:", err);
+      console.error("Conversion error:", err);
       alert("❌ Excel conversion failed. Check console for details.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // ---------------- Logout ----------------
+  // 🔒 Logout
   const handleLogout = () => {
-    const confirmLogout = window.confirm("Are you sure you want to log out?");
-    if (!confirmLogout) return;
-
+    if (!window.confirm("Are you sure you want to log out?")) return;
     setLoggingOut(true);
     localStorage.removeItem("user");
     sessionStorage.removeItem("user");
-
-    setTimeout(() => {
-      navigate("/login");
-    }, 1200);
+    setTimeout(() => navigate("/login"), 1200);
   };
 
   return (
@@ -192,7 +119,6 @@ export default function ExcelToPPT() {
             </Link>
           </div>
 
-          {/* Logout at bottom */}
           <div className="bottom-links">
             <div className="logout-btn" onClick={handleLogout}>
               <FaSignOutAlt className="icon" /> Logout
@@ -218,7 +144,6 @@ export default function ExcelToPPT() {
           </header>
 
           <div className="content-grid">
-            {/* Main Upload and Conversion Area */}
             <div className="main-cards">
               <section className="card">
                 <h2>Upload Your Excel File</h2>
@@ -252,10 +177,9 @@ export default function ExcelToPPT() {
                   />
                 </div>
 
-                {/* Excel Features */}
                 <div className="features-grid">
                   <div className="feature-card charts">
-                    <h4>Charts &amp; Graphs</h4>
+                    <h4>Charts & Graphs</h4>
                     <p>Automatically converts Excel charts to PowerPoint</p>
                   </div>
                   <div className="feature-card tables">
@@ -264,13 +188,29 @@ export default function ExcelToPPT() {
                   </div>
                 </div>
 
-                {/* Download button */}
-                <button className="convert-btn" onClick={handleDownload}>
-                  Convert to PowerPoint
+                {/* Single Convert + Edit/Preview Button */}
+                <button
+                  className="convert-btn"
+                  onClick={() => {
+                    if (convertedSlides) {
+                      navigate("/edit-preview", {
+                        state: { slides: convertedSlides, topic },
+                      });
+                    } else {
+                      handleConvert();
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  {isLoading
+                    ? "Converting..."
+                    : convertedSlides
+                    ? "Edit & Preview Slides"
+                    : "Convert to PowerPoint"}
                 </button>
               </section>
 
-              {/* Customize Presentation */}
+              {/* Customize */}
               <section className="card">
                 <h2>Customize Your Presentation</h2>
                 <div className="checkbox-grid">
@@ -298,10 +238,10 @@ export default function ExcelToPPT() {
                       type="range"
                       min="3"
                       max="20"
-                      value={slidesCount} // <-- bind to state
-                      onChange={(e) => setSlidesCount(parseInt(e.target.value))} // <-- update state
+                      value={slidesCount}
+                      onChange={(e) => setSlidesCount(parseInt(e.target.value))}
                     />
-                    <span>{slidesCount} slides</span> {/* <-- dynamic display */}
+                    <span>{slidesCount} slides</span>
                   </div>
 
                   <div className="input-group">
@@ -327,7 +267,7 @@ export default function ExcelToPPT() {
               </section>
             </div>
 
-            {/* Right Sidebar */}
+            {/* Sidebar */}
             <aside className="right-sidebar">
               <section className="card">
                 <h3>Processing Features</h3>
@@ -342,9 +282,9 @@ export default function ExcelToPPT() {
               <section className="card">
                 <h3>Supported Charts</h3>
                 <ul>
-                  <li>Bar &amp; Column Charts</li>
-                  <li>Line &amp; Area Charts</li>
-                  <li>Pie &amp; Doughnut Charts</li>
+                  <li>Bar & Column Charts</li>
+                  <li>Line & Area Charts</li>
+                  <li>Pie & Doughnut Charts</li>
                   <li>Scatter Plots</li>
                   <li>Combo Charts</li>
                   <li>Pivot Charts</li>
@@ -362,7 +302,7 @@ export default function ExcelToPPT() {
 
               <section className="card">
                 <h3>Processing Time</h3>
-                <p className="processing-time">1-2 minutes</p>
+                <p className="processing-time">1–2 minutes</p>
                 <p className="small-text">
                   For typical Excel files with charts
                 </p>

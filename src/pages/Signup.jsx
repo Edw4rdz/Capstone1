@@ -144,7 +144,7 @@ export default function Signup() {
                 <i><FaUser /></i>
                 <input
                   type="text"
-                  placeholder="Full Name"
+                  placeholder="Username"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={loading}

@@ -1,108 +1,192 @@
-/* src/components/edit-preview.css */
-
-.edit-preview-page {
-  font-family: "Poppins", sans-serif;
-  background-color: #f7f8fa;
+/* --- Overall Layout --- */
+.edit-preview-wrapper {
+  display: flex;
   min-height: 100vh;
+  background: linear-gradient(135deg, #eef1ff, #dee7ff);
+  font-family: "Inter", sans-serif;
 }
 
-.edit-preview-header {
+/* --- Sidebar --- */
+.sidebar-glass {
+  width: 280px;
+  background: rgba(65, 80, 255, 0.85);
+  backdrop-filter: blur(14px);
+  color: #fff;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-glass h2 {
+  font-size: 1.3rem;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.template-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.template-item {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: center;
+}
+
+.template-item img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.template-item p {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.template-item:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.03);
+}
+
+.template-item.selected {
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+}
+
+/* --- Header --- */
+.header-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 40px;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  padding: 18px 30px;
+  border-radius: 16px;
+  margin-bottom: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-.edit-preview-header h1 {
-  font-size: 1.5rem;
+.header-glass h1 {
+  color: #28307a;
+  font-weight: 600;
+  font-size: 1.4rem;
+}
+
+.header-actions button {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-back {
+  background: #fff;
   color: #333;
 }
 
-.header-actions {
-  display: flex;
-  gap: 15px;
+.btn-download {
+  background: linear-gradient(90deg, #6578ff, #8a5cff);
+  color: #fff;
 }
 
-.back-btn, .download-btn-main {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
+.btn-download:hover {
+  transform: translateY(-2px);
+}
+
+/* --- Slide Grid --- */
+.slides-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  padding-bottom: 50px;
+}
+
+.slide-editor {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  padding: 25px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* --- Edit Area --- */
+.edit-section label {
   font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
+  color: #3643a2;
+  display: block;
+  margin-bottom: 6px;
 }
 
-.back-btn {
-  background: #f0f0f0;
-  color: #555;
-}
-
-.back-btn:hover {
-  background: #e0e0e0;
-}
-
-.download-btn-main {
-  background: #a830ba;
-  color: white;
-}
-
-.download-btn-main:hover {
-  background: #8a249c;
-}
-
-.edit-preview-content {
-  padding: 30px 40px;
-}
-
-/* We can reuse the preview-box style from ai-generator.css */
-/* Or define a new one */
-.preview-box-full {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-/* --- ADD THIS TO ai-generator.css --- */
-/* Style for the new button on the generator page */
-
-.preview-edit-btn {
-  background: #28a745; /* Green color for "Go" */
-  color: white;
-  border: none;
+.edit-section input[type="text"],
+.edit-section textarea {
   width: 100%;
-  padding: 14px;
-  border-radius: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 20px;
-  font-size: 1.1rem;
+  border: 1.5px solid #d4d8ff;
+  background: #f7f9ff;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.edit-section input[type="text"]:focus,
+.edit-section textarea:focus {
+  border-color: #6578ff;
+  box-shadow: 0 0 10px rgba(101, 120, 255, 0.3);
+}
+
+.edit-section input[type="file"] {
+  margin-top: 5px;
+}
+
+/* --- Preview Area --- */
+.preview-section {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
 }
 
-.preview-edit-btn:hover {
-  background: #218838;
-}
-
-.generation-complete-box {
-  border: 2px dashed #28a745;
+.preview-slide {
+  background: linear-gradient(135deg, #eaf0ff, #f5f6ff);
   border-radius: 12px;
   padding: 20px;
   text-align: center;
-  margin-top: 20px;
+  width: 100%;
+  height: 100%;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.1);
 }
 
-.generation-complete-box h3 {
-  color: #28a745;
-  margin-bottom: 10px;
+.preview-slide h3 {
+  color: #2f3fa6;
+  font-size: 1.2rem;
+}
+
+.preview-slide ul {
+  list-style: disc;
+  text-align: left;
+  margin: 15px auto;
+  padding-left: 40px;
+}
+
+.preview-slide img {
+  max-width: 90%;
+  border-radius: 10px;
+  margin-top: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }

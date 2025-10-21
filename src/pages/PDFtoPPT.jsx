@@ -1,8 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import PptxGen from "pptxgenjs"; // v3.x
-import { convertPDF } from "../api"; // axios call to backend
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
+import { convertPDF } from "../api"; // axios -> backend
 import "./pdftoppt.css";
 import "font-awesome/css/font-awesome.min.css";
 
@@ -13,10 +12,11 @@ export default function PDFToPPT() {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [slidePreviews, setSlidePreviews] = useState([]); // { title, bullets, imageBase64, loading }
+  const [convertedSlides, setConvertedSlides] = useState(null);
+const [topic, setTopic] = useState("");
 
 
-  // File selection
+  // 🧩 Select File
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && selectedFile.type === "application/pdf") {
@@ -27,14 +27,13 @@ export default function PDFToPPT() {
     }
   };
 
-  // ---------------- Upload PDF to backend and generate PPT ----------------
+  // 🚀 Upload + Convert PDF
+// 🚀 Upload + Convert PDF
 const handleUpload = async () => {
   if (!file) return alert("Please select a PDF first");
-  if (file.size > 20 * 1024 * 1024)
-    return alert("File too large (max 20MB)");
+  if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
 
   setIsLoading(true);
-  setSlidePreviews([]); // reset previews
 
   try {
     const reader = new FileReader();
@@ -43,131 +42,34 @@ const handleUpload = async () => {
     reader.onload = async () => {
       const base64PDF = reader.result.split(",")[1];
 
-      // 1️⃣ Call backend API
+      // 🔗 Call backend API
       const response = await convertPDF({ base64PDF, slides });
-      const slideData = response.data.slides;
 
-      // 2️⃣ Initialize previews with loading state
-      const previews = slideData.map((s) => ({ ...s, loading: true }));
-      setSlidePreviews(previews);
-
-      alert(
-        "Slides generated. Images are loading in the background, please wait..."
-      );
-
-      // 3️⃣ Wait for each image to load asynchronously
-      const loadedSlides = await Promise.all(
-        slideData.map(async (slide) => {
-          if (slide.imageBase64) {
-            return { ...slide, loading: false };
-          } else {
-            // optional: retry or fallback image
-            return { ...slide, imageBase64: null, loading: false };
-          }
-        })
-      );
-
-      setSlidePreviews(loadedSlides);
-
-      // 4️⃣ Generate PPTX
-      const pptx = new PptxGen();
-      pptx.defineLayout({ name: "A4", width: 11.69, height: 8.27 });
-      pptx.layout = "A4";
-
-loadedSlides.forEach((slide, index) => {
-  const pptSlide = pptx.addSlide();
-
-  // 🏷 Title (top)
-  pptSlide.addText(slide.title || `Slide ${index + 1}`, {
-    x: 0.5,
-    y: 0.3,
-    w: 10.5,
-    h: 0.8,
-    fontSize: 28,
-    bold: true,
-    color: "1F497D",
-    align: "center",
-  });
-
-  // 📋 Bullet points (left side)
-  if (slide.bullets?.length) {
-    pptSlide.addText(slide.bullets.map(b => `• ${b}`).join("\n"), {
-      x: 0.5,
-      y: 1.5,
-      w: 5.5,
-      h: 4.5,
-      fontSize: 18,
-      color: "333333",
-      lineSpacing: 28,
-      bullet: true,
-      valign: "top",
-      align: "left",
-    });
-  }
-
-  // 🖼 Image (right side)
-  if (slide.imageBase64) {
-    pptSlide.addImage({
-      data: `data:image/png;base64,${slide.imageBase64}`,
-      x: 6.2, // move image to right side
-      y: 1.5,
-      w: 4.5,
-      h: 4.5,
-    });
-  } else {
-    pptSlide.addText(
-     slide.loading ? "🖼 Loading image..." : "🖼 No image generated",
-      {
-        x: 6.2,
-        y: 3.5,
-        w: 4.5,
-        h: 1,
-        fontSize: 16,
-        color: slide.loading ? "0000FF" : "FF0000",
-        italic: true,
-        align: "center",
-        valign: "middle",
+      if (response.data.success && response.data.slides) {
+        // ✅ Store slides locally instead of redirect
+        setConvertedSlides(response.data.slides);
+        setTopic(file.name.replace(".pdf", ""));
+        alert("Conversion successful! You can now preview or edit it.");
+      } else {
+        alert("Conversion failed. Please try again.");
       }
-    );
-  }
-});
-
-      // 5️⃣ Download PPTX
-      const blob = await pptx.write("blob");
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${file.name.replace(".pdf", "")}_converted.pptx`;
-      link.click();
-      URL.revokeObjectURL(url);
-
-      alert("Conversion done! PPTX downloaded.");
-    };
-
-    reader.onerror = () => {
-      throw new Error("Could not read PDF file.");
     };
   } catch (err) {
     console.error(err);
-    alert("Conversion failed. Check console for details.");
+    alert("Conversion failed. See console for details.");
   } finally {
     setIsLoading(false);
   }
 };
 
 
-
+  // 🔒 Logout
   const handleLogout = () => {
-    const confirmLogout = window.confirm("Are you sure you want to log out?");
-    if (!confirmLogout) return;
-
+    if (!window.confirm("Are you sure you want to log out?")) return;
     setLoggingOut(true);
     localStorage.removeItem("user");
     sessionStorage.removeItem("user");
-
-    setTimeout(() => {
-      navigate("/login");
-    }, 1200);
+    setTimeout(() => navigate("/login"), 1000);
   };
 
   return (
@@ -210,22 +112,18 @@ loadedSlides.forEach((slide, index) => {
       {/* Main Content */}
       <main className="ai-main">
         <div className="ai-container">
-          {/* Header */}
           <header className="headerp">
-            <div className="headerp-icon">PDF</div>
+            <div className="headerp-icon">📄</div>
             <div>
-            <h1>PDF to PPT Converter</h1>
-            <p>
-              Transform your PDF documents into editable PowerPoint presentations
-            </p>
-          </div>
+              <h1>PDF to PowerPoint Converter</h1>
+              <p>Transform your PDFs into editable and AI-enhanced slides</p>
+            </div>
           </header>
 
-          {/* Two-column Content */}
           <div className="ai-content">
             {/* Left Column */}
             <div className="ai-left">
-              {/* File Upload Card */}
+              {/* Upload Card */}
               <div className="ai-card ai-card-top">
                 <h2>Upload Your PDF</h2>
                 <div className="uploadp-area">
@@ -239,40 +137,45 @@ loadedSlides.forEach((slide, index) => {
                       browse
                     </span>
                   </h3>
-                  <p>Supports .pdf files up to 25MB</p>
+                  <p>Supports up to 25MB PDF files</p>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    className="file-input"
                     accept=".pdf"
                     onChange={handleFileChange}
                     style={{ display: "none" }}
                   />
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
+
                 <button
-                  onClick={handleUpload}
-                  className="uploadp-btn"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Converting..." : "Convert to PPT"}
-                </button>
+  onClick={handleUpload}
+  className="uploadp-btn"
+  disabled={isLoading}
+>
+  {isLoading ? "Converting..." : "Convert to PPT"}
+</button>
+
+{/* Show after successful conversion */}
+{convertedSlides && (
+  <div className="after-convert-actions">
+    <button
+      className="edit-preview-btn"
+      onClick={() =>
+        navigate("/edit-preview", { state: { slides: convertedSlides, topic } })
+      }
+    >
+      📝 Edit & Preview Slides
+    </button>
+  </div>
+)}
+
+
               </div>
 
-              {/* Upload Requirements */}
+              {/* Customization */}
               <div className="ai-card">
-                <h4>Upload Requirements</h4>
-                <ul>
-                  <li>PDF files only</li>
-                  <li>Maximum file size: 50MB</li>
-                  <li>Text-based PDFs work best</li>
-                  <li>Scanned PDFs may have limited text extraction</li>
-                </ul>
-              </div>
-
-              {/* Customize Card */}
-              <div className="ai-card">
-                <h2>Customize Your Presentation</h2>
+                <h2>Customize Output</h2>
                 <div className="ai-slider-section">
                   <label htmlFor="slides">Number of Slides</label>
                   <input
@@ -290,34 +193,24 @@ loadedSlides.forEach((slide, index) => {
 
             {/* Right Column */}
             <div className="ai-right">
-              {/* How it Works */}
               <div className="ai-info-box">
-                <h3>How it works</h3>
+                <h3>How it Works</h3>
                 <ol>
-                  <li>
-                    <strong>Upload PDF</strong> - Select the PDF file you want
-                    to convert
-                  </li>
-                  <li>
-                    <strong>Customize slides</strong> - Choose number of slides
-                    and presentation style
-                  </li>
-                  <li>
-                    <strong>Download PPT</strong> - Get your editable PowerPoint
-                    presentation
-                  </li>
+                  <li>Upload your PDF document.</li>
+                  <li>Choose the number of slides.</li>
+                  <li>AI automatically creates your presentation.</li>
+                  <li>Preview and edit it interactively before download.</li>
                 </ol>
               </div>
 
-              {/* Features */}
               <div className="ai-info-box">
-                <h3>Features</h3>
-                <ol className="ai-features">
-                  <li>Text-based PDFs convert best</li>
-                  <li>Scanned PDFs may have limited editable content</li>
-                  <li>Choose slide count and style</li>
-                  <li>Instant download as PPTX</li>
-                </ol>
+                <h3>Tips</h3>
+                <ul>
+                  <li>Text-based PDFs produce better slides.</li>
+                  <li>Scanned images may have limited text extraction.</li>
+                  <li>Try 10–20 slides for balanced detail.</li>
+                  <li>Edit in the next page before downloading.</li>
+                </ul>
               </div>
             </div>
           </div>
