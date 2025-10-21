@@ -142,3 +142,54 @@ html, body {
   object-fit: cover;
   display: block;
 }
+
+.divider {
+  text-align: center;
+  margin: 20px 0;
+  position: relative;
+}
+
+.divider span {
+  background: #fff;
+  padding: 0 10px;
+  color: #777;
+  font-size: 14px;
+}
+
+.divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  width: 80%;
+  height: 1px;
+  background: #ddd;
+  transform: translateY(-50%);
+}
+
+.google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #fff;
+  color: #444;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px 0;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.google-btn:hover {
+  background: #f7f7f7;
+  border-color: #ccc;
+}
+
+.google-icon {
+  color: #db4437;
+  font-size: 20px;
+}

@@ -12,6 +12,7 @@ import ExcelToPPT from "./pages/ExcelToPPT";
 import Conversions from "./pages/Conversions";
 import Logout from "./pages/Logout";
 import UploadTemplate from "./pages/UploadTemplate";
+import Settings from "./pages/Settings"; 
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/ai-generator" element={<AIGenerator />} />
         <Route path="/edit-preview" element={<EditPreview />} />
         <Route path="/uploadTemplate" element={<UploadTemplate />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<h1>404 - Page Not Found</h1>} />
       </Routes>
     </Router>
