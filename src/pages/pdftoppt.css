@@ -96,21 +96,20 @@ body {
   color: #fff;
 }
 
-/* Upload Template Button */
-.uploadp-btn {
+/* This rule was duplicated, using the second, more specific one */
+.upload-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100;
-  padding: 14px;
-  border-radius: 16px;
+  padding: 10px 20px;
+  border-radius: 6px;
   color: white;
   text-decoration: none;
   margin-top: 10px;
   transition: background-color 0.2s;
 }
 
-.uploadp-btn .icon {
+.upload-btn .icon {
   margin-right: 8px;
 }
 
@@ -276,8 +275,11 @@ body {
   color: #555;
 }
 
+/* --- MODIFIED --- */
 .uploadp-btn {
-  display: block;
+  display: flex; /* Changed from 'block' */
+  justify-content: center; /* Added */
+  align-items: center; /* Added */
   width: 100%;
   padding: 10px;
   background: #ef4444;
@@ -287,7 +289,10 @@ body {
   cursor: pointer;
   margin-top: 15px;
   transition: background 0.3s;
+  min-height: 45px; /* Added */
+  font-weight: 600; /* Added for consistency */
 }
+/* --- END MODIFIED --- */
 
 .uploadp-btn:hover {
   background: #dc2626;
@@ -384,3 +389,52 @@ body {
   background-color: #4338ca;
   transform: scale(1.05);
 }
+
+/* --- ADDED: STYLES FOR PROGRESS BAR (RED THEME) --- */
+
+.uploadp-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; /* Make bar a bit taller */
+  background-color: #b91c1c; /* Darker red for the track */
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; /* Needed for the text and bar */
+  
+  /* Center the text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.uploadp-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; /* Sit on top of the bar */
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Makes text more readable */
+}
+
+.uploadp-btn .progress-bar-indeterminate {
+  width: 60%; 
+  height: 100%;
+  background-color: #ef4444; /* Your theme color */
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+  
+  /* The animation */
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; /* Start off-screen left */
+  }
+  100% {
+    left: 100%; /* End off-screen right */
+  }
+}
+
+/* --- END ADDED STYLES --- */

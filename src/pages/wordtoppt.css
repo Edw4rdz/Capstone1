@@ -174,9 +174,6 @@ body {
   width: 100%;
 }
 
-
-
-
 .header {
   display: flex;
   gap: 15px;
@@ -203,8 +200,6 @@ body {
   flex: 1;
   width: 100%;
 }
-
-
 
 /* Left Column */
 .ai-left {
@@ -277,6 +272,12 @@ body {
   height: 100%;
   opacity: 0;
   cursor: pointer;
+}
+
+.file-name {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #555;
 }
 
 /* Grid 2 Columns */
@@ -368,9 +369,11 @@ body {
   color: #666;
 }
 
-
+/* --- MODIFIED --- */
 .convertw-btn {
-  display: block;
+  display: flex; /* Changed from 'block' */
+  justify-content: center; /* Added */
+  align-items: center; /* Added */
   width: 100%;
   padding: 10px;
   background: #3b82f6;
@@ -380,12 +383,87 @@ body {
   cursor: pointer;
   margin-top: 15px;
   transition: background 0.3s;
+  min-height: 45px; /* Added */
+  font-weight: 600; /* Added */
 }
+/* --- END MODIFIED --- */
 
 .convertw-btn:hover {
   background: #94b2e2;
 }
 
-.upload-btn:hover {
-  background: #2563eb;
+/* --- ADDED: Styles for Edit Button --- */
+.after-convert-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
 }
+
+.edit-preview-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-preview-btn:hover {
+  background-color: #4338ca;
+  transform: scale(1.05);
+}
+/* --- END ADDED --- */
+
+/* --- ADDED: STYLES FOR PROGRESS BAR (BLUE THEME) --- */
+
+.convertw-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; /* Make bar a bit taller */
+  background-color: #2563eb; /* Darker blue for the track */
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; /* Needed for the text and bar */
+  
+  /* Center the text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.convertw-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; /* Sit on top of the bar */
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Makes text more readable */
+}
+
+.convertw-btn .progress-bar-indeterminate {
+  width: 60%; 
+  height: 100%;
+  background-color: #3b82f6; /* Your theme color */
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+  
+  /* The animation */
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+/* This animation is used by all progress bars */
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; /* Start off-screen left */
+  }
+  100% {
+    left: 100%; /* End off-screen right */
+  }
+}
+
+/* --- END ADDED STYLES --- */

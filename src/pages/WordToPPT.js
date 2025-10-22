@@ -12,6 +12,11 @@ export default function WordToPPT() {
   const [file, setFile] = useState(null);
   const [slides, setSlides] = useState(15);
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- ADDED: State for loading message ---
+  const [loadingText, setLoadingText] = useState("");
+  // --- END ADDED ---
+
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
   const fileInputRef = useRef(null);
@@ -37,12 +42,19 @@ export default function WordToPPT() {
     if (!file) return alert("Please select a Word document first");
     if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
 
+    // --- MODIFIED: Set loading and initial text ---
     setIsLoading(true);
+    setLoadingText("Reading Word file..."); // <-- Step 1 Text
+    // --- END MODIFIED ---
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
 
     reader.onload = async () => {
+      // --- ADDED: Set text for the next step ---
+      setLoadingText("Converting document..."); // <-- Step 2 Text
+      // --- END ADDED ---
+      
       const base64Word = reader.result.split(",")[1];
 
       try {
@@ -61,13 +73,19 @@ export default function WordToPPT() {
         console.error(err);
         alert("Conversion failed. See console for details.");
       } finally {
+        // --- MODIFIED: Reset loading and text ---
         setIsLoading(false);
+        setLoadingText(""); // <-- Reset text
+        // --- END MODIFIED ---
       }
     };
 
     reader.onerror = () => {
       alert("Failed to read Word file. Please try again.");
+      // --- MODIFIED: Reset loading and text ---
       setIsLoading(false);
+      setLoadingText(""); // <-- Reset text
+      // --- END MODIFIED ---
     };
   };
 
@@ -159,13 +177,22 @@ export default function WordToPPT() {
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
 
+                {/* --- MODIFIED: This button now shows the progress bar --- */}
                 <button
                   onClick={handleUpload}
                   className="convertw-btn"
                   disabled={isLoading || !file}
                 >
-                  {isLoading ? "Converting..." : "Convert to PPT"}
+                  {isLoading ? (
+                    <div className="progress-bar-container">
+                      <div className="progress-bar-indeterminate"></div>
+                      <span className="progress-text">{loadingText}</span>
+                    </div>
+                  ) : (
+                    "Convert to PPT"
+                  )}
                 </button>
+                {/* --- END MODIFIED --- */}
 
                 {/* ✅ Show Preview & Edit after conversion */}
                 {convertedSlides && (

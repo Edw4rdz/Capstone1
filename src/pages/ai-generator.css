@@ -32,6 +32,14 @@ body {
   font-weight: 600;
   cursor: pointer;
   margin-top: 15px;
+  
+  /* --- MODIFIED --- */
+  /* Ensure height is consistent when loading */
+  min-height: 53px; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* --- END MODIFIED --- */
 }
 
 /* Sidebar */
@@ -361,4 +369,145 @@ textarea {
   position: absolute;
   left: 0;
   color: #22c55e;
+}
+
+/* --- ADDED: STYLES FOR EDITABLE PREVIEW (for EditPreview.js) --- */
+
+.slide-preview {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background: #fdfdfd;
+}
+
+.slide-edit-title {
+  width: 100%;
+  padding: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1F497D;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  box-sizing: border-box; /* Important! */
+}
+
+.slide-edit-bullets {
+  width: 100%;
+  height: 180px; /* Give it a good default height */
+  padding: 10px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  resize: vertical; /* Allows user to drag-resize the height */
+  box-sizing: border-box; /* Important! */
+  font-family: inherit; /* Make it use the same font as your app */
+}
+
+/* Override global textarea style for the slide-edit-bullets */
+textarea.slide-edit-bullets {
+  height: 180px; /* Explicitly set height */
+  margin-bottom: 0; /* Remove bottom margin inside the preview card */
+}
+
+/* Modify existing ai-section-label for better spacing in preview */
+.slide-preview .ai-section-label {
+  display: block;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 5px;
+  margin-top: 5px; /* Add some space above labels */
+}
+
+/* --- ADDED: STYLES FOR "GENERATION COMPLETE" BOX --- */
+
+.generation-complete-box {
+  border: 2px dashed #28a745;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin-top: 20px;
+  background: #f6fff8;
+}
+
+.generation-complete-box h3 {
+  color: #28a745;
+  margin-bottom: 10px;
+}
+
+.generation-complete-box p {
+  color: #555;
+  margin-bottom: 15px;
+}
+
+.preview-edit-btn {
+  background: #28a745; /* Green color for "Go" */
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.2s;
+}
+
+.preview-edit-btn:hover {
+  background: #218838;
+}
+
+/* --- ADDED: STYLES FOR PROGRESS BAR --- */
+
+.generateAI-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; /* Make bar a bit taller */
+  background-color: #5a2c8a; /* Darker purple for the track */
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; /* Needed for the text and bar */
+  
+  /* Center the text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; /* Sit on top of the bar */
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Makes text more readable */
+}
+
+.progress-bar-indeterminate {
+  width: 60%; 
+  height: 100%;
+  background-color: #a830ba; /* Your theme color */
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+  
+  /* The animation */
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; /* Start off-screen left */
+  }
+  100% {
+    left: 100%; /* End off-screen right */
+  }
 }

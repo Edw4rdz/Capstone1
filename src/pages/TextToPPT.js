@@ -11,10 +11,15 @@ export default function TextToPPT() {
   const [fileName, setFileName] = useState("");
   const [slides, setSlides] = useState(8);
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- ADDED: State for loading message ---
+  const [loadingText, setLoadingText] = useState("");
+  // --- END ADDED ---
+
   const [slidePreviews, setSlidePreviews] = useState([]);
   const [convertedSlides, setConvertedSlides] = useState(null); // ✅ Added state
   const fileInputRef = useRef(null);
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
   // ---------------- File Upload Handlers ----------------
@@ -48,7 +53,10 @@ export default function TextToPPT() {
       return;
     }
 
+    // --- MODIFIED: Set loading and initial text ---
     setIsLoading(true);
+    setLoadingText("Generating slide content..."); // <-- Step 1 Text
+    // --- END MODIFIED ---
     setSlidePreviews([]);
 
     try {
@@ -61,29 +69,33 @@ export default function TextToPPT() {
       if (!response.data.success || !Array.isArray(response.data.slides)) {
         const msg = response.data?.error || "Backend returned invalid data";
         console.error("Invalid slide data:", response.data.slides);
-        return alert("Conversion failed: " + msg);
+        throw new Error("Conversion failed: " + msg); // Use throw for proper catch handling
       }
 
       // Step 2: Initialize slide previews
       const slideData = response.data.slides.map((slide) => ({
         ...slide,
-        loading: true,
+        loading: true, // Keep loading true initially if needed
       }));
-      setSlidePreviews(slideData);
+      setSlidePreviews(slideData); // Show previews immediately if desired
 
       alert(
-        "Slides generated. Images are loading in the background, please wait..."
+        "Slides generated. Generating .pptx file, please wait..." // Update alert
       );
 
-      // Step 3: Mark slides as loaded
+      // Step 3: Mark slides as loaded (can happen quickly if no image fetching)
       const loadedSlides = slideData.map((slide) => ({
         ...slide,
-        loading: false,
+        loading: false, // Mark as loaded
         imageBase64: slide.imageBase64 || null,
       }));
 
-      setSlidePreviews(loadedSlides);
+      setSlidePreviews(loadedSlides); // Update previews if needed
       setConvertedSlides(loadedSlides); // ✅ Store slides for edit-preview button
+
+      // --- ADDED: Set text for the next step ---
+      setLoadingText("Generating .pptx file..."); // <-- Step 2 Text
+      // --- END ADDED ---
 
       // Step 4: Generate PPTX
       const pptx = new PptxGen();
@@ -92,58 +104,24 @@ export default function TextToPPT() {
 
       loadedSlides.forEach((slide, index) => {
         const pptSlide = pptx.addSlide();
-
-        // Title
+        // ... (Your existing pptxgenjs code for adding text and images) ...
+         // Title
         pptSlide.addText(slide.title || `Slide ${index + 1}`, {
-          x: 0.5,
-          y: 0.3,
-          w: 10.5,
-          h: 0.8,
-          fontSize: 28,
-          bold: true,
-          color: "1F497D",
-          align: "center",
+          x: 0.5, y: 0.3, w: 10.5, h: 0.8, fontSize: 28, bold: true, color: "1F497D", align: "center",
         });
-
         // Bullets
         if (slide.bullets?.length) {
           pptSlide.addText(slide.bullets.map((b) => `• ${b}`).join("\n"), {
-            x: 0.5,
-            y: 1.5,
-            w: 5.5,
-            h: 4.5,
-            fontSize: 18,
-            color: "333333",
-            lineSpacing: 28,
-            bullet: true,
-            valign: "top",
-            align: "left",
+            x: 0.5, y: 1.5, w: 5.5, h: 4.5, fontSize: 18, color: "333333", lineSpacing: 28, bullet: true, valign: "top", align: "left",
           });
         }
-
         // Optional image
         if (slide.imageBase64) {
-          pptSlide.addImage({
-            data: `data:image/png;base64,${slide.imageBase64}`,
-            x: 6.2,
-            y: 1.5,
-            w: 4.5,
-            h: 4.5,
-          });
+          pptSlide.addImage({ data: `data:image/png;base64,${slide.imageBase64}`, x: 6.2, y: 1.5, w: 4.5, h: 4.5 });
         } else {
-          pptSlide.addText(
-            slide.loading ? "🖼 Loading image..." : "🖼 No image generated",
-            {
-              x: 6.2,
-              y: 3.5,
-              w: 4.5,
-              h: 1,
-              fontSize: 16,
-              color: slide.loading ? "0000FF" : "FF0000",
-              italic: true,
-              align: "center",
-              valign: "middle",
-            }
+           pptSlide.addText(
+             slide.loading ? "🖼 Loading image..." : "🖼 No image generated", // Use loaded state here
+            { x: 6.2, y: 3.5, w: 4.5, h: 1, fontSize: 16, color: "FF0000", italic: true, align: "center", valign: "middle" }
           );
         }
       });
@@ -163,7 +141,10 @@ export default function TextToPPT() {
       const msg = err.response?.data?.error || err.message || "Unknown backend error";
       alert("❌ Conversion failed: " + msg);
     } finally {
+      // --- MODIFIED: Reset loading and text ---
       setIsLoading(false);
+      setLoadingText(""); // <-- Reset text
+      // --- END MODIFIED ---
     }
   };
 
@@ -314,9 +295,22 @@ export default function TextToPPT() {
                   </div>
                 </div>
 
-                <button className="convertt-btn" onClick={handleConvert}>
-                  Convert to Presentation
+                {/* --- MODIFIED: This button now shows the progress bar --- */}
+                <button
+                  className="convertt-btn"
+                  onClick={handleConvert}
+                  disabled={isLoading || !fileContent.trim()}
+                >
+                  {isLoading ? (
+                    <div className="progress-bar-container">
+                      <div className="progress-bar-indeterminate"></div>
+                      <span className="progress-text">{loadingText}</span>
+                    </div>
+                  ) : (
+                    "Convert to Presentation"
+                  )}
                 </button>
+                {/* --- END MODIFIED --- */}
 
                 {/* ✅ Edit & Preview Button (appears after conversion) */}
                 {convertedSlides && (

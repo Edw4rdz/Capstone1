@@ -9,11 +9,16 @@ export default function PDFToPPT() {
   const [slides, setSlides] = useState(15);
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // --- ADDED: State for loading message ---
+  const [loadingText, setLoadingText] = useState("");
+  // --- END ADDED ---
+  
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
   const [convertedSlides, setConvertedSlides] = useState(null);
-const [topic, setTopic] = useState("");
+  const [topic, setTopic] = useState("");
 
 
   // 🧩 Select File
@@ -28,39 +33,57 @@ const [topic, setTopic] = useState("");
   };
 
   // 🚀 Upload + Convert PDF
-// 🚀 Upload + Convert PDF
-const handleUpload = async () => {
-  if (!file) return alert("Please select a PDF first");
-  if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
+  // --- MODIFIED: Restructured this entire function ---
+  const handleUpload = async () => {
+    if (!file) return alert("Please select a PDF first");
+    if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
 
-  setIsLoading(true);
+    // 1. Set loading state immediately
+    setIsLoading(true);
+    setLoadingText("Reading PDF file..."); // <-- Step 1 Text
 
-  try {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
 
+    // 2. Define the onload event handler
     reader.onload = async () => {
-      const base64PDF = reader.result.split(",")[1];
+      // 3. The file is read, now start the API call
+      // The try/catch/finally block MUST be INSIDE here
+      try {
+        setLoadingText("Converting document..."); // <-- Step 2 Text
+        const base64PDF = reader.result.split(",")[1];
+        
+        // 4. Call the backend API
+        const response = await convertPDF({ base64PDF, slides });
 
-      // 🔗 Call backend API
-      const response = await convertPDF({ base64PDF, slides });
-
-      if (response.data.success && response.data.slides) {
-        // ✅ Store slides locally instead of redirect
-        setConvertedSlides(response.data.slides);
-        setTopic(file.name.replace(".pdf", ""));
-        alert("Conversion successful! You can now preview or edit it.");
-      } else {
-        alert("Conversion failed. Please try again.");
+        if (response.data.success && response.data.slides) {
+          setConvertedSlides(response.data.slides);
+          setTopic(file.name.replace(".pdf", ""));
+          alert("Conversion successful! You can now preview or edit it.");
+        } else {
+          alert("Conversion failed. Please try again.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Conversion failed. See console for details.");
+      } finally {
+        // 5. This now runs ONLY after the API call is done
+        setIsLoading(false);
+        setLoadingText(""); // <-- Reset text
       }
     };
-  } catch (err) {
-    console.error(err);
-    alert("Conversion failed. See console for details.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+    
+    // 6. Define an error handler for the reader itself
+    reader.onerror = () => {
+        console.error("Error reading the file.");
+        alert("Error reading the file. Please try again.");
+        setIsLoading(false);
+        setLoadingText("");
+    };
+
+    // 7. Start reading the file (this triggers onload or onerror)
+    reader.readAsDataURL(file);
+  };
+  // --- END MODIFIED ---
 
 
   // 🔒 Logout
@@ -148,27 +171,36 @@ const handleUpload = async () => {
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
 
+                {/* --- This JSX is correct and will now work --- */}
                 <button
-  onClick={handleUpload}
-  className="uploadp-btn"
-  disabled={isLoading}
->
-  {isLoading ? "Converting..." : "Convert to PPT"}
-</button>
+                  onClick={handleUpload}
+                  className="uploadp-btn"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="progress-bar-container">
+                      <div className="progress-bar-indeterminate"></div>
+                      <span className="progress-text">{loadingText}</span>
+                    </div>
+                  ) : (
+                    "Convert to PPT"
+                  )}
+                </button>
+                {/* --- END MODIFIED --- */}
 
-{/* Show after successful conversion */}
-{convertedSlides && (
-  <div className="after-convert-actions">
-    <button
-      className="edit-preview-btn"
-      onClick={() =>
-        navigate("/edit-preview", { state: { slides: convertedSlides, topic } })
-      }
-    >
-      📝 Edit & Preview Slides
-    </button>
-  </div>
-)}
+                {/* Show after successful conversion */}
+                {convertedSlides && (
+                  <div className="after-convert-actions">
+                    <button
+                      className="edit-preview-btn"
+                      onClick={() =>
+                        navigate("/edit-preview", { state: { slides: convertedSlides, topic } })
+                      }
+                    >
+                      📝 Edit & Preview Slides
+                    </button>
+                  </div>
+                )}
 
 
               </div>

@@ -15,6 +15,11 @@ export default function AIGenerator() {
   const [slides, setSlides] = useState(10);
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // --- ADDED: State for loading message ---
+  const [loadingText, setLoadingText] = useState("");
+  // --- END ADDED ---
+  
   const [preview, setPreview] = useState([]); // This state now just holds the data
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -29,16 +34,23 @@ export default function AIGenerator() {
 
   const handleGenerate = async () => {
     if (!topic.trim()) return alert("Please enter a topic first!");
+
+    // --- MODIFIED: Set loading and initial text ---
     setLoading(true);
+    setLoadingText("Generating slide content..."); // <-- Step 1 Text
+    // --- END MODIFIED ---
+    
     setPreview([]); // Reset preview data
 
     try {
       const res = await generateSlides({ topic, slides });
       if (!res.data.success) throw new Error("Failed to generate slides");
 
-      // --- MODIFIED ---
+      // --- ADDED: Set text for the next step ---
+      setLoadingText("Processing slides and layout..."); // <-- Step 2 Text
+      // --- END ADDED ---
+
       // We just need to add the ID to the data.
-      // The image loading simulation is no longer needed here.
       const finalSlides = res.data.slides.map((s, idx) => ({
         ...s,
         id: idx, // Add the unique ID for the edit page
@@ -47,11 +59,15 @@ export default function AIGenerator() {
 
       setPreview(finalSlides); // Set the slide data
       alert("Slides generated. Click 'Edit & Preview' to continue!");
-    } catch (err) {
+    } catch (err)
+      {
       console.error(err);
       alert("Error generating slides: " + err.message);
     } finally {
+      // --- MODIFIED: Reset loading and text ---
       setLoading(false);
+      setLoadingText(""); // <-- Reset text
+      // --- END MODIFIED ---
     }
   };
 
@@ -136,13 +152,22 @@ export default function AIGenerator() {
                   onChange={(e) => setTopic(e.target.value)}
                 ></textarea>
 
+                {/* --- MODIFIED: This button now shows the progress bar --- */}
                 <button
                   className="generateAI-btn"
                   onClick={handleGenerate}
                   disabled={!topic.trim() || loading}
                 >
-                  {loading ? "Generating..." : <><FaMagic /> Generate Presentation</>}
+                  {loading ? (
+                    <div className="progress-bar-container">
+                      <div className="progress-bar-indeterminate"></div>
+                      <span className="progress-text">{loadingText}</span>
+                    </div>
+                  ) : (
+                    <><FaMagic /> Generate Presentation</>
+                  )}
                 </button>
+                {/* --- END MODIFIED --- */}
 
                 {/* --- MODIFIED --- */}
                 {/* This block replaces the old preview box */}
