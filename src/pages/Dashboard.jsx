@@ -33,7 +33,8 @@ export default function Dashboard() {
       const raw = localStorage.getItem("user");
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.name) return parsed;
+      // ✅ Use username if available
+      if (parsed && parsed.username) return parsed;
     } catch (e) {
       // ignore parse errors
     }
@@ -48,51 +49,80 @@ export default function Dashboard() {
         return;
       }
 
-      // 1) Quick: try cached localStorage user
+      // 1️⃣ Quick: try cached localStorage user
       const cached = tryCachedUser();
-      if (cached && cached.name) {
-        setUserName(cached.name);
+      if (cached && cached.username) {
+        setUserName(cached.username);
       } else {
         setUserName("Loading...");
       }
 
       try {
-        // 2) Try to get a document with ID = auth.uid (covers the case where users were stored by uid)
+        // 2️⃣ Try to get a document with ID = auth.uid
         const byUidRef = doc(db, "users", user.uid);
         const byUidSnap = await getDoc(byUidRef);
 
         if (byUidSnap.exists()) {
           const data = byUidSnap.data();
-          const name = data.name || data.fullName || data.displayName || "User";
-          setUserName(name);
+          const username =
+            data.username ||
+            data.name ||
+            data.fullName ||
+            data.displayName ||
+            "User";
+          setUserName(username);
           // cache for faster load next time
-          localStorage.setItem("user", JSON.stringify({ name, email: data.email || user.email, user_id: user.uid }));
+          localStorage.setItem(
+            "user",
+            JSON.stringify({
+              username,
+              email: data.email || user.email,
+              user_id: user.uid,
+            })
+          );
           return;
         }
 
-        // 3) If not found, query for document where authUID == user.uid (covers numeric-id storage)
+        // 3️⃣ If not found, query where authUID == user.uid
         const usersCol = collection(db, "users");
         const q = query(usersCol, where("authUID", "==", user.uid));
         const qSnap = await getDocs(q);
 
         if (!qSnap.empty) {
-          // pick the first match
           const docSnap = qSnap.docs[0];
           const data = docSnap.data();
-          const name = data.name || data.fullName || data.displayName || "User";
-          setUserName(name);
-          // cache user with numeric id (docSnap.id) and name
-          localStorage.setItem("user", JSON.stringify({ name, email: data.email || user.email, user_id: docSnap.id }));
+          const username =
+            data.username ||
+            data.name ||
+            data.fullName ||
+            data.displayName ||
+            "User";
+          setUserName(username);
+          // cache
+          localStorage.setItem(
+            "user",
+            JSON.stringify({
+              username,
+              email: data.email || user.email,
+              user_id: docSnap.id,
+            })
+          );
           return;
         }
 
-        // 4) If still not found, fallback to firebase auth displayName or email
+        // 4️⃣ Fallback
         const fallback = user.displayName || user.email || "User";
         setUserName(fallback);
-        localStorage.setItem("user", JSON.stringify({ name: fallback, email: user.email, user_id: user.uid }));
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            username: fallback,
+            email: user.email,
+            user_id: user.uid,
+          })
+        );
       } catch (err) {
         console.error("Error fetching user info for dashboard:", err);
-        // keep whatever we had (cached or fallback)
         if (!userName || userName === "Loading...") {
           setUserName(user.displayName || user.email || "User");
         }
@@ -133,9 +163,15 @@ export default function Dashboard() {
 
         <nav className="sidebar-links">
           <div className="top-links">
-            <Link to="/dashboard" className="active"><i className="fa fa-home" /> Dashboard</Link>
-            <Link to="/conversion"><i className="fa fa-history" /> Conversions</Link>
-            <Link to="/settings"><i className="fa fa-cog" /> Settings</Link>
+            <Link to="/dashboard" className="active">
+              <i className="fa fa-home" /> Dashboard
+            </Link>
+            <Link to="/conversion">
+              <i className="fa fa-history" /> Conversions
+            </Link>
+            <Link to="/settings">
+              <i className="fa fa-cog" /> Settings
+            </Link>
 
             {/* Upload Template Button */}
             <Link to="/uploadTemplate" className="upload-btn">
@@ -157,7 +193,9 @@ export default function Dashboard() {
       <main className="main">
         <div className="content">
           <div className="header">
-            <h1><span>✨ Welcome</span> {userName}</h1>
+            <h1>
+              <span>✨ Welcome</span> {userName}
+            </h1>
             <p>Choose a tool below to get started</p>
           </div>
 
@@ -170,7 +208,9 @@ export default function Dashboard() {
                   </div>
                   <h3 className="tool-title">{tool.title}</h3>
                   <p className="tool-desc">{tool.desc}</p>
-                  <span className="tool-arrow"><i className="fa fa-arrow-right" /></span>
+                  <span className="tool-arrow">
+                    <i className="fa fa-arrow-right" />
+                  </span>
                 </div>
               </Link>
             ))}

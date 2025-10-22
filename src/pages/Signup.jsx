@@ -10,6 +10,7 @@ import { auth, db } from "../firebase";
 import { doc, setDoc, runTransaction } from "firebase/firestore";
 
 export default function Signup() {
+  const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +21,8 @@ export default function Signup() {
 
   // ✅ Form Validation
   const validateForm = () => {
+    if (!username.trim()) return "Username is required.";
+
     if (!fullName.trim()) return "Full name is required.";
     if (!/^[A-Za-z\s]+$/.test(fullName))
       return "Full name should contain only letters and spaces.";
@@ -66,31 +69,21 @@ export default function Signup() {
         return newCount;
       });
 
-      // 🧾 Step 3: Save user info in Firestore using numeric ID
+      // 🧾 Step 3: Save user info in Firestore using numeric ID ONLY
       const numericDocRef = doc(db, "users", newUserId.toString());
       await setDoc(numericDocRef, {
+        username: username,
         name: fullName,
         email: email,
         createdAt: new Date().toISOString(),
         authUID: user.uid,
       });
 
-      // 🔁 Step 4: ALSO write a mirror document keyed by the Firebase Auth UID
-      // This allows reads using user.uid (works with your existing security rules)
-      const uidDocRef = doc(db, "users", user.uid);
-      // We store the same basic fields plus reference to numeric id
-      await setDoc(uidDocRef, {
-        name: fullName,
-        email: email,
-        createdAt: new Date().toISOString(),
-        numericId: newUserId,
-        authUID: user.uid,
-      });
-
-      // 💾 Step 5: Store user info locally (cache)
+      // 💾 Step 4: Store user info locally (cache)
       localStorage.setItem(
         "user",
         JSON.stringify({
+          username: username,
           name: fullName,
           email: email,
           user_id: newUserId,
@@ -100,7 +93,6 @@ export default function Signup() {
 
       alert(`✅ Account created successfully! (User #${newUserId})`);
       navigate("/dashboard");
-
     } catch (error) {
       console.error("❌ Firebase Signup Error:", error);
       let errorMessage = "An error occurred. Please try again.";
@@ -140,17 +132,31 @@ export default function Signup() {
 
               {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
 
+              {/* Username */}
               <div className="input-box">
                 <i><FaUser /></i>
                 <input
                   type="text"
                   placeholder="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Full Name */}
+              <div className="input-box">
+                <i><FaUser /></i>
+                <input
+                  type="text"
+                  placeholder="Full Name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={loading}
                 />
               </div>
 
+              {/* Email */}
               <div className="input-box">
                 <i><FaEnvelope /></i>
                 <input
@@ -162,6 +168,7 @@ export default function Signup() {
                 />
               </div>
 
+              {/* Password */}
               <div className="input-box">
                 <i><FaLock /></i>
                 <input
@@ -173,6 +180,7 @@ export default function Signup() {
                 />
               </div>
 
+              {/* Show password */}
               <div className="show-password">
                 <input
                   type="checkbox"
@@ -183,6 +191,7 @@ export default function Signup() {
                 <label htmlFor="showPassword"> Show Password</label>
               </div>
 
+              {/* Register button */}
               <div className="button">
                 <input
                   type="button"
