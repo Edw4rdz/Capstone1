@@ -3,9 +3,6 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-console.log("Firebase API Key:", process.env.REACT_APP_FIREBASE_API_KEY);
-
-// ✅ Use REACT_APP_ environment variables (required for CRA)
 const firebaseConfig = {
   apiKey: "AIzaSyD5O1jKptv3gOTzJPzGqU9IIjIyEY7IhQI",
   authDomain: "slide-it-9cbd2.firebaseapp.com",
@@ -15,10 +12,10 @@ const firebaseConfig = {
   appId: "1:814290391915:web:d567012323a30604b9f22e",
 };
 
-// ✅ Initialize Firebase app
+// ✅ Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// ✅ Export Firebase services
+// ✅ Export services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 

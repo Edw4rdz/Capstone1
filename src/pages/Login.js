@@ -4,14 +4,21 @@ import loginImg from "../assets/loginImg.jpg";
 import "./login.css";
 import { useNavigate } from "react-router-dom";
 
-// 🔥 Firebase imports
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
 } from "firebase/auth";
 import { auth, db } from "../firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -30,20 +37,39 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // 🔥 Sign in with Firebase Auth
+      // Sign in
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 🔍 Fetch user data from Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      // Try to find the user's Firestore doc by authUID (handles numeric doc id layout)
+      let userDataFromDb = null;
 
-      const userData = {
-        name: userDoc.exists() ? userDoc.data().name : "Unknown User",
-        email: user.email,
-        user_id: user.uid,
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("authUID", "==", user.uid));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const docSnap = querySnapshot.docs[0];
+        userDataFromDb = { id: docSnap.id, ...docSnap.data() };
+      } else {
+        // fallback: maybe some accounts were stored at users/{uid}
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          userDataFromDb = { id: userDoc.id, ...userDoc.data() };
+        }
+      }
+
+      // Build a consistent localStorage object
+      const localUser = {
+        username: userDataFromDb?.username || user.displayName || user.email,
+        firstName: userDataFromDb?.firstName || null,
+        lastName: userDataFromDb?.lastName || null,
+        email: userDataFromDb?.email || user.email,
+        user_id: userDataFromDb?.numericId || user.uid,
+        authUID: user.uid,
       };
 
-      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("user", JSON.stringify(localUser));
       alert("Login successful!");
       navigate("/dashboard");
     } catch (err) {
@@ -61,7 +87,6 @@ export default function Login() {
     }
   };
 
-  // 🧠 Google login handler
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     setLoading(true);
@@ -70,27 +95,32 @@ export default function Login() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // 🧾 Save user data in Firestore if new
-      const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
+      // If you want to create a Firestore doc for Google users (only if missing)
+      // we try to locate a doc by authUID first:
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("authUID", "==", user.uid));
+      const querySnapshot = await getDocs(q);
 
-      if (!userDoc.exists()) {
-        await setDoc(userRef, {
+      if (querySnapshot.empty) {
+        // Create a doc at users/{uid} for google users so later sign-in works
+        const uidRef = doc(db, "users", user.uid);
+        await setDoc(uidRef, {
           name: user.displayName,
           email: user.email,
-          created_at: new Date(),
+          createdAt: new Date().toISOString(),
+          authUID: user.uid,
         });
       }
 
-      const userData = {
-        name: user.displayName,
+      const localUser = {
+        username: user.displayName || user.email,
         email: user.email,
         user_id: user.uid,
+        authUID: user.uid,
       };
 
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      alert("Welcome, " + user.displayName + "!");
+      localStorage.setItem("user", JSON.stringify(localUser));
+      alert("Welcome, " + (user.displayName || user.email) + "!");
       navigate("/dashboard");
     } catch (err) {
       console.error("Google sign-in failed:", err);
@@ -139,12 +169,10 @@ export default function Login() {
               {loading ? "Logging in..." : "Login"}
             </button>
 
-            {/* Divider */}
             <div className="divider">
               <span>OR</span>
             </div>
 
-            {/* 🌐 Google Login Button */}
             <button
               type="button"
               className="google-btn"

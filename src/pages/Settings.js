@@ -1,147 +1,121 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUserCog, FaUpload, FaHistory } from "react-icons/fa";
-import { doc, updateDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
-import "./settings.css";
 import {
+  getAuth,
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  updateEmail,
 } from "firebase/auth";
+import { db } from "../firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import "./settings.css";
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [conversionCount, setConversionCount] = useState(12);
+  const auth = getAuth();
 
+  const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [conversionCount, setConversionCount] = useState(0);
+
+  // Profile info
   const [profile, setProfile] = useState({
-    name: "",
+    fullName: "",
     email: "",
-    password: "",
+    birthday: "",
   });
 
-  // ✅ Load user info from localStorage
-  useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
-    if (storedUser) {
-      setProfile({
-        name: storedUser.name || "",
-        email: storedUser.email || "",
-        password: "",
-      });
-    } else {
-      navigate("/login");
-    }
-  }, [navigate]);
+  // Password fields
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
-  // ✅ Logout
-  const handleLogout = () => {
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+
+      try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("authUID", "==", user.uid));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const data = querySnapshot.docs[0].data();
+
+          const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+          const birthday = data.birthday
+            ? new Date(data.birthday).toISOString().split("T")[0]
+            : "";
+
+          setProfile({
+            fullName,
+            email: data.email || user.email || "",
+            birthday,
+          });
+        } else {
+          setProfile({
+            fullName: user.displayName || "",
+            email: user.email || "",
+            birthday: "",
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching user profile:", err);
+        alert("Failed to load user profile.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [auth, navigate]);
+
+  // ✅ Update password (with both fields)
+  const handlePasswordChange = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      alert("New password must be at least 6 characters.");
+      return;
+    }
+
+    if (!currentPassword) {
+      alert("Please enter your current password.");
+      return;
+    }
+
+    try {
+      const user = auth.currentUser;
+      if (!user) return navigate("/login");
+
+      // Reauthenticate first
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+
+      // Update password
+      await updatePassword(user, newPassword);
+
+      alert("✅ Password updated successfully!");
+      setNewPassword("");
+      setCurrentPassword("");
+    } catch (err) {
+      console.error("Error updating password:", err);
+      alert("❌ Failed to update password. Please check your current password and try again.");
+    }
+  };
+
+  // 🚪 Logout
+  const handleLogout = async () => {
     if (!window.confirm("Are you sure you want to log out?")) return;
     setLoggingOut(true);
     localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-    setTimeout(() => navigate("/login"), 1000);
+    await auth.signOut();
+    navigate("/login");
   };
 
-  // ✅ Handle input changes
-  const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
-  };
-
-const handleSaveProfile = async () => {
-  try {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
-    if (!storedUser?.authUID) {
-      alert("User not found. Please log in again.");
-      navigate("/login");
-      return;
-    }
-
-    // Ensure auth.currentUser is present
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      alert("No authenticated user found. Please log in again.");
-      navigate("/login");
-      return;
-    }
-
-    // 1) Update Firestore (name + email mirror)
-    const userRef = doc(db, "users", storedUser.authUID);
-    await updateDoc(userRef, {
-      name: profile.name,
-      email: profile.email,
-      updatedAt: new Date().toISOString(),
-    });
-
-    // 2) Update localStorage copy
-    const updatedUser = { ...storedUser, name: profile.name, email: profile.email };
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-
-    // Helper: reauth flow that asks for current password and reauthenticates
-    const reauthIfNeeded = async (err) => {
-      if (err?.code === "auth/requires-recent-login") {
-        const currentPassword = window.prompt(
-          "For security, please enter your CURRENT password to continue:"
-        );
-        if (!currentPassword) throw new Error("Re-authentication cancelled by user.");
-        const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
-        await reauthenticateWithCredential(currentUser, credential);
-        return true;
-      }
-      return false;
-    };
-
-    // 3) Update email in Firebase Auth if changed
-    if (profile.email && profile.email !== currentUser.email) {
-      try {
-        await updateEmail(currentUser, profile.email);
-      } catch (err) {
-        // try reauth if required then retry
-        const reauthed = await reauthIfNeeded(err);
-        if (reauthed) {
-          await updateEmail(currentUser, profile.email);
-        } else {
-          throw err;
-        }
-      }
-    }
-
-    // 4) Update password if provided
-    if (profile.password && profile.password.trim() !== "") {
-      try {
-        await updatePassword(currentUser, profile.password);
-        alert("✅ Password updated successfully!");
-      } catch (err) {
-        const reauthed = await reauthIfNeeded(err);
-        if (reauthed) {
-          await updatePassword(currentUser, profile.password);
-          alert("✅ Password updated successfully after re-auth!");
-        } else {
-          throw err;
-        }
-      }
-    }
-
-    alert("✅ Profile updated successfully!");
-    setProfile((prev) => ({ ...prev, password: "" }));
-  } catch (err) {
-    console.error("Error updating profile:", err);
-    // friendly messages
-    if (err.code === "auth/wrong-password" || err.message?.includes("wrong-password")) {
-      alert("⚠️ The current password you entered is incorrect.");
-    } else if (err.code === "auth/invalid-email") {
-      alert("⚠️ The provided email is invalid.");
-    } else if (err.code === "auth/email-already-in-use") {
-      alert("⚠️ That email is already in use by another account.");
-    } else {
-      alert("❌ Failed to update profile. See console for details.");
-    }
-  }
-};
-
+  if (loading) return <div>Loading profile...</div>;
 
   return (
     <div className="ai-dashboard">
@@ -186,57 +160,64 @@ const handleSaveProfile = async () => {
           <header className="settings-header">
             <div className="header-icon">⚙️</div>
             <div>
-              <h1>Settings</h1>
-              <p>Manage your profile</p>
+              <h1>Profile & Settings</h1>
+              <p>Manage your profile and app settings.</p>
             </div>
           </header>
 
           <div className="settings-grid single">
-            {/* 🧍 Basic Settings */}
             <div className="settings-card">
-              <h2>Basic Settings</h2>
+              <h2>USER INFORMATION</h2>
 
+              {/* Profile Info */}
               <div className="form-group">
                 <label>Full Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={profile.name}
-                  onChange={handleProfileChange}
-                />
+                <input type="text" value={profile.fullName} readOnly />
               </div>
 
               <div className="form-group">
                 <label>Email Address</label>
+                <input type="email" value={profile.email} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>Birthday</label>
+                <input type="date" value={profile.birthday} readOnly />
+              </div>
+
+              {/* ✅ Added current password field above new password */}
+              <div className="form-group">
+                <label>Current Password</label>
                 <input
-                  type="email"
-                  name="email"
-                  value={profile.email}
-                  onChange={handleProfileChange}
+                  type="password"
+                  placeholder="Enter your current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
                 />
               </div>
 
               <div className="form-group">
-                <label>Change Password</label>
+                <label>New Password</label>
                 <input
                   type="password"
-                  name="password"
-                  placeholder="Enter new password"
-                  value={profile.password}
-                  onChange={handleProfileChange}
+                  placeholder="Enter your new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                 />
               </div>
 
+              {/* Conversion history */}
               <div className="form-group readonly">
-                <label>Number of Conversion History</label>
+                <label>Conversion History</label>
                 <div className="readonly-box">
                   <FaHistory className="icon" />
                   <span>{conversionCount} total conversions</span>
                 </div>
               </div>
 
-              <button className="save-btn" onClick={handleSaveProfile}>
-                Save Basic Settings
+              {/* Save Button */}
+              <button className="save-btn" onClick={handlePasswordChange}>
+                Update Password
               </button>
             </div>
           </div>
