@@ -3,8 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import {
-  doc,
-  getDoc,
   collection,
   query,
   where,
@@ -27,111 +25,75 @@ export default function Dashboard() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [userName, setUserName] = useState("Loading...");
 
-  // Try to read cached user first (fast)
-  const tryCachedUser = () => {
-    try {
-      const raw = localStorage.getItem("user");
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      // ✅ Use username if available
-      if (parsed && parsed.username) return parsed;
-    } catch (e) {
-      // ignore parse errors
-    }
-    return null;
-  };
-
   useEffect(() => {
     const auth = getAuth();
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         setUserName("Unknown User");
+        navigate("/login");
         return;
       }
 
-      // 1️⃣ Quick: try cached localStorage user
-      const cached = tryCachedUser();
-      if (cached && cached.username) {
-        setUserName(cached.username);
-      } else {
-        setUserName("Loading...");
+      // Try cache first (support both "username" and legacy "name")
+      try {
+        const cachedRaw = localStorage.getItem("user");
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (cached.username) {
+            setUserName(cached.username);
+            return;
+          }
+          if (cached.name) {
+            setUserName(cached.name);
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore
       }
 
+      setUserName("Loading...");
+
+      // Query Firestore for the doc where authUID == user.uid
       try {
-        // 2️⃣ Try to get a document with ID = auth.uid
-        const byUidRef = doc(db, "users", user.uid);
-        const byUidSnap = await getDoc(byUidRef);
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("authUID", "==", user.uid));
+        const snapshot = await getDocs(q);
 
-        if (byUidSnap.exists()) {
-          const data = byUidSnap.data();
-          const username =
-            data.username ||
-            data.name ||
-            data.fullName ||
-            data.displayName ||
-            "User";
-          setUserName(username);
-          // cache for faster load next time
-          localStorage.setItem(
-            "user",
-            JSON.stringify({
-              username,
-              email: data.email || user.email,
-              user_id: user.uid,
-            })
-          );
-          return;
-        }
-
-        // 3️⃣ If not found, query where authUID == user.uid
-        const usersCol = collection(db, "users");
-        const q = query(usersCol, where("authUID", "==", user.uid));
-        const qSnap = await getDocs(q);
-
-        if (!qSnap.empty) {
-          const docSnap = qSnap.docs[0];
+        if (!snapshot.empty) {
+          const docSnap = snapshot.docs[0];
           const data = docSnap.data();
-          const username =
-            data.username ||
-            data.name ||
-            data.fullName ||
-            data.displayName ||
-            "User";
+          const username = data.username || (data.firstName && data.lastName ? `${data.firstName} ${data.lastName}` : data.email) || user.email || "User";
           setUserName(username);
+
           // cache
-          localStorage.setItem(
-            "user",
-            JSON.stringify({
-              username,
-              email: data.email || user.email,
-              user_id: docSnap.id,
-            })
-          );
+          localStorage.setItem("user", JSON.stringify({
+            username,
+            email: data.email || user.email,
+            user_id: data.numericId || docSnap.id,
+            authUID: user.uid,
+          }));
           return;
         }
 
-        // 4️⃣ Fallback
+        // fallback
         const fallback = user.displayName || user.email || "User";
         setUserName(fallback);
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            username: fallback,
-            email: user.email,
-            user_id: user.uid,
-          })
-        );
+        localStorage.setItem("user", JSON.stringify({
+          username: fallback,
+          email: user.email,
+          user_id: user.uid,
+          authUID: user.uid,
+        }));
       } catch (err) {
         console.error("Error fetching user info for dashboard:", err);
-        if (!userName || userName === "Loading...") {
-          setUserName(user.displayName || user.email || "User");
-        }
+        setUserName(user.displayName || user.email || "User");
       }
     });
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [navigate]);
 
   const handleLogout = async () => {
     const confirmLogout = window.confirm("Are you sure you want to log out?");
@@ -163,23 +125,15 @@ export default function Dashboard() {
 
         <nav className="sidebar-links">
           <div className="top-links">
-            <Link to="/dashboard" className="active">
-              <i className="fa fa-home" /> Dashboard
-            </Link>
-            <Link to="/conversion">
-              <i className="fa fa-history" /> Drafts
-            </Link>
-            <Link to="/settings">
-              <i className="fa fa-cog" /> Settings
-            </Link>
+            <Link to="/dashboard" className="active"><i className="fa fa-home" /> Dashboard</Link>
+            <Link to="/conversion"><i className="fa fa-history" /> Drafts</Link>
+            <Link to="/settings"><i className="fa fa-cog" /> Settings</Link>
 
-            {/* Upload Template Button */}
             <Link to="/uploadTemplate" className="upload-btn">
               <FaUpload className="icon" /> Upload Template
             </Link>
-          </div> 
+          </div>
 
-          {/* Logout always at bottom */}
           <div className="bottom-links">
             <div className="logout-btn" onClick={handleLogout}>
               <FaSignOutAlt className="icon" /> Logout
@@ -193,9 +147,7 @@ export default function Dashboard() {
       <main className="main">
         <div className="content">
           <div className="header">
-            <h1>
-              <span>✨ Welcome</span> {userName}
-            </h1>
+            <h1><span>✨ Welcome</span> {userName}</h1>
             <p>Choose a tool below to get started</p>
           </div>
 
@@ -208,9 +160,7 @@ export default function Dashboard() {
                   </div>
                   <h3 className="tool-title">{tool.title}</h3>
                   <p className="tool-desc">{tool.desc}</p>
-                  <span className="tool-arrow">
-                    <i className="fa fa-arrow-right" />
-                  </span>
+                  <span className="tool-arrow"><i className="fa fa-arrow-right" /></span>
                 </div>
               </Link>
             ))}
