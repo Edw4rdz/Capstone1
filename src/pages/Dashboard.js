@@ -177,7 +177,7 @@ export default function Dashboard() {
             <Link to="/uploadTemplate" className="upload-btn">
               <FaUpload className="icon" /> Upload Template
             </Link>
-          </div>
+          </div> 
 
           {/* Logout always at bottom */}
           <div className="bottom-links">
