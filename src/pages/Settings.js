@@ -161,7 +161,7 @@ const handleSaveProfile = async () => {
               <i className="fa fa-home"></i> Dashboard
             </Link>
             <Link to="/conversion">
-              <i className="fa fa-history"></i> Conversions
+              <i className="fa fa-history"></i> Drafts
             </Link>
             <Link to="/settings" className="active">
               <FaUserCog /> Settings

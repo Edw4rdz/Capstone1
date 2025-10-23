@@ -1,27 +1,28 @@
 import React, { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
-import PptxGen from "pptxgenjs";
 import { convertWord } from "../api";
 import "./wordtoppt.css";
 import "font-awesome/css/font-awesome.min.css";
+import { db } from "../firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
 export default function WordToPPT() {
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
   const [file, setFile] = useState(null);
   const [slides, setSlides] = useState(15);
   const [isLoading, setIsLoading] = useState(false);
-
-  // --- ADDED: State for loading message ---
   const [loadingText, setLoadingText] = useState("");
-  // --- END ADDED ---
-
+  const [progress, setProgress] = useState(0);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [conversionId, setConversionId] = useState(null);
   const fileInputRef = useRef(null);
 
-  // 📂 Select file
+  const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
+
+  // 📂 Select File
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (
@@ -42,50 +43,64 @@ export default function WordToPPT() {
     if (!file) return alert("Please select a Word document first");
     if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
 
-    // --- MODIFIED: Set loading and initial text ---
     setIsLoading(true);
-    setLoadingText("Reading Word file..."); // <-- Step 1 Text
-    // --- END MODIFIED ---
+    setLoadingText("Reading Word file...");
+    setProgress(0);
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
 
     reader.onload = async () => {
-      // --- ADDED: Set text for the next step ---
-      setLoadingText("Converting document..."); // <-- Step 2 Text
-      // --- END ADDED ---
-      
+      setLoadingText("Starting conversion...");
       const base64Word = reader.result.split(",")[1];
+      const userId = loggedInUser?.user_id;
+      const fileName = file.name;
 
       try {
-        const response = await convertWord({ base64Word, slides });
-        const slideData = response.data.slides;
+        const response = await convertWord({ base64Word, slides, userId, fileName });
 
-        if (response.data.success && Array.isArray(slideData)) {
-          // ✅ Store slides locally for preview
-          setConvertedSlides(slideData);
+        if (response.data.success) {
+          const convId = response.data.conversionId;
+          setConversionId(convId);
           setTopic(file.name.replace(".docx", "").replace(".doc", ""));
-          alert("Conversion successful! You can now preview or edit it.");
+
+          // Poll Firestore for progress
+          const conversionDocRef = doc(db, "conversions", userId, "user_conversions", convId);
+          const unsubscribe = onSnapshot(conversionDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              setProgress(data.progress || 0);
+              setLoadingText(`Processing: ${data.status || "Processing"} (${data.progress || 0}%)`);
+
+              if (data.status === "Completed") {
+                setConvertedSlides(data.slides || []);
+                setIsLoading(false);
+                setLoadingText("Conversion completed!");
+                unsubscribe();
+              } else if (data.status === "Failed") {
+                setIsLoading(false);
+                setLoadingText("Conversion failed.");
+                unsubscribe();
+              }
+            }
+          });
         } else {
           alert("Conversion failed. Please try again.");
+          setIsLoading(false);
+          setLoadingText("");
         }
       } catch (err) {
         console.error(err);
         alert("Conversion failed. See console for details.");
-      } finally {
-        // --- MODIFIED: Reset loading and text ---
         setIsLoading(false);
-        setLoadingText(""); // <-- Reset text
-        // --- END MODIFIED ---
+        setLoadingText("");
       }
     };
 
     reader.onerror = () => {
       alert("Failed to read Word file. Please try again.");
-      // --- MODIFIED: Reset loading and text ---
       setIsLoading(false);
-      setLoadingText(""); // <-- Reset text
-      // --- END MODIFIED ---
+      setLoadingText("");
     };
   };
 
@@ -116,7 +131,7 @@ export default function WordToPPT() {
               <i className="fa fa-home"></i> Dashboard
             </Link>
             <Link to="/conversion">
-              <i className="fa fa-history"></i> Conversions
+              <i className="fa fa-history"></i> Drafts
             </Link>
             <Link to="/settings">
               <i className="fa fa-cog"></i> Settings
@@ -142,10 +157,7 @@ export default function WordToPPT() {
             <div className="headerw-icon">DOCX</div>
             <div>
               <h1>Word to PPT Converter</h1>
-              <p>
-                Transform your Word documents into editable PowerPoint
-                presentations
-              </p>
+              <p>Transform your Word documents into editable PowerPoint presentations</p>
             </div>
           </header>
 
@@ -158,10 +170,7 @@ export default function WordToPPT() {
                   <div className="uploadw-icon">⬆</div>
                   <h3>
                     Drop your Word document here, or{" "}
-                    <span
-                      className="browsew"
-                      onClick={() => fileInputRef.current.click()}
-                    >
+                    <span className="browsew" onClick={() => fileInputRef.current.click()}>
                       browse
                     </span>
                   </h3>
@@ -177,7 +186,7 @@ export default function WordToPPT() {
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
 
-                {/* --- MODIFIED: This button now shows the progress bar --- */}
+                {/* Progress Button */}
                 <button
                   onClick={handleUpload}
                   className="convertw-btn"
@@ -185,25 +194,20 @@ export default function WordToPPT() {
                 >
                   {isLoading ? (
                     <div className="progress-bar-container">
-                      <div className="progress-bar-indeterminate"></div>
+                      <div className="progress-bar" style={{ width: `${progress}%` }}></div>
                       <span className="progress-text">{loadingText}</span>
                     </div>
                   ) : (
                     "Convert to PPT"
                   )}
                 </button>
-                {/* --- END MODIFIED --- */}
 
-                {/* ✅ Show Preview & Edit after conversion */}
+                {/* Preview/Edit */}
                 {convertedSlides && (
                   <div className="after-convert-actions">
                     <button
                       className="edit-preview-btn"
-                      onClick={() =>
-                        navigate("/edit-preview", {
-                          state: { slides: convertedSlides, topic },
-                        })
-                      }
+                      onClick={() => navigate("/edit-preview", { state: { slides: convertedSlides, topic } })}
                     >
                       📝 Edit & Preview Slides
                     </button>

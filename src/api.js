@@ -26,8 +26,8 @@ export const convertExcel = (data) =>
 
 
 // ------------------ AI Generator ------------------ //
-export const generateSlides = async ({ topic, slides }) => {
-  return await axios.post(`${API_BASE}/ai-generator`, { topic, slides });
+export const generateSlides = (data) => {
+  return axios.post("/ai-generator", data); // send topic, slides, userId, fileName
 };
 
 export const downloadPPTX = async (slides) => {

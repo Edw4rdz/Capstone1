@@ -53,7 +53,18 @@ router.post("/templates/use/:id", (req, res) => {
   const tpl = PREBUILT_TEMPLATES.find((t) => t.id === id);
   if (!tpl)
     return res.status(404).json({ success: false, message: "Template not found" });
-  res.json({ success: true, link: tpl.link });
+  
+  res.json({
+    success: true,
+    template: {
+      link: tpl.link,
+      background: tpl.background,
+      titleColor: tpl.titleColor,
+      textColor: tpl.textColor,
+      font: tpl.font,
+    },
+  });
 });
+
 
 export default router;

@@ -167,7 +167,7 @@ export default function Dashboard() {
               <i className="fa fa-home" /> Dashboard
             </Link>
             <Link to="/conversion">
-              <i className="fa fa-history" /> Conversions
+              <i className="fa fa-history" /> Drafts
             </Link>
             <Link to="/settings">
               <i className="fa fa-cog" /> Settings

@@ -1,24 +1,24 @@
 import React, { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
-import "./exceltoppt.css";
-import "./Dashboard";
 import { convertExcel } from "../api";
+import "./exceltoppt.css";
 
 export default function ExcelToPPT() {
   const [file, setFile] = useState(null);
-  const [fileName, setFileName] = useState("");
   const [slidesCount, setSlidesCount] = useState(8);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState("");
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
   // Handle file selection
-  const handleFileUpload = (event) => {
-    const selectedFile = event.target.files[0];
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
     if (
@@ -27,59 +27,58 @@ export default function ExcelToPPT() {
       selectedFile.type === "application/vnd.ms-excel"
     ) {
       setFile(selectedFile);
-      setFileName(selectedFile.name);
     } else {
       alert("Please upload a valid Excel file (.xlsx or .xls)");
       setFile(null);
-      setFileName("");
     }
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const droppedFile = e.dataTransfer.files[0];
-    if (!droppedFile) return;
-    setFile(droppedFile);
-    setFileName(droppedFile.name);
-  };
-
-  const handleDragOver = (e) => e.preventDefault();
-
-  // 🚀 Convert Excel → Slide Data (for edit/preview)
+  // 🚀 Upload + Convert Excel
   const handleConvert = async () => {
-    if (!file) {
-      alert("Please upload an Excel file first!");
-      return;
-    }
+    if (!file) return alert("Please select an Excel file first");
+    if (file.size > 50 * 1024 * 1024) return alert("File too large (max 50MB)");
 
     setIsLoading(true);
+    setLoadingText("Reading Excel file...");
 
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64Excel = e.target.result.split(",")[1];
-        const { data } = await convertExcel({
+    const reader = new FileReader();
+
+    reader.onload = async () => {
+      try {
+        setLoadingText("Converting Excel to slides...");
+        const base64Excel = reader.result.split(",")[1];
+
+        const response = await convertExcel({
           base64Excel,
           slides: slidesCount,
+          userId: loggedInUser?.user_id,
+          fileName: file.name,
         });
 
-        if (!data.success || !Array.isArray(data.slides)) {
-          alert("Conversion failed: " + (data.error || "Invalid response"));
-          return;
+        if (response.data.success && response.data.slides) {
+          setConvertedSlides(response.data.slides);
+          setTopic(file.name.replace(/\.(xlsx|xls)/i, ""));
+          alert("✅ Conversion successful! You can now preview or edit it.");
+        } else {
+          alert("Conversion failed. Please try again.");
         }
+      } catch (err) {
+        console.error("Excel conversion error:", err);
+        alert("❌ Conversion failed. Check console for details.");
+      } finally {
+        setIsLoading(false);
+        setLoadingText("");
+      }
+    };
 
-        setConvertedSlides(data.slides);
-        setTopic(file.name.replace(/\.(xlsx|xls)/i, ""));
-        alert("✅ Conversion successful! You can now preview or edit.");
-      };
-
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error("Conversion error:", err);
-      alert("❌ Excel conversion failed. Check console for details.");
-    } finally {
+    reader.onerror = () => {
+      console.error("Error reading the Excel file");
+      alert("Error reading the file. Please try again.");
       setIsLoading(false);
-    }
+      setLoadingText("");
+    };
+
+    reader.readAsDataURL(file);
   };
 
   // 🔒 Logout
@@ -109,7 +108,7 @@ export default function ExcelToPPT() {
               <i className="fa fa-home"></i> Dashboard
             </Link>
             <Link to="/conversion">
-              <i className="fa fa-history"></i> Conversions
+              <i className="fa fa-history"></i> Drafts
             </Link>
             <Link to="/settings">
               <i className="fa fa-cog"></i> Settings
@@ -136,10 +135,7 @@ export default function ExcelToPPT() {
             <div className="header-icon">XLSX</div>
             <div>
               <h1>Excel to PPT Converter</h1>
-              <p>
-                Transform your Excel data and charts into professional
-                PowerPoint presentations
-              </p>
+              <p>Transform your Excel sheets into editable AI slides</p>
             </div>
           </header>
 
@@ -149,15 +145,13 @@ export default function ExcelToPPT() {
                 <h2>Upload Your Excel File</h2>
                 <div
                   className="file-upload"
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
                   onClick={() => fileInputRef.current.click()}
                 >
                   <div className="uploade-area">
                     <div className="uploade-icon">⬆</div>
                     {file ? (
                       <p>
-                        <strong>{fileName}</strong> loaded
+                        <strong>{file.name}</strong> loaded
                       </p>
                     ) : (
                       <p>
@@ -165,7 +159,7 @@ export default function ExcelToPPT() {
                         <span className="browse">browse</span>
                       </p>
                     )}
-                    <p>Supports .xlsx and .xls up to 25MB</p>
+                    <p>Supports .xlsx and .xls up to 50MB</p>
                   </div>
                   <input
                     ref={fileInputRef}
@@ -173,22 +167,10 @@ export default function ExcelToPPT() {
                     className="file-input"
                     accept=".xlsx,.xls"
                     style={{ display: "none" }}
-                    onChange={handleFileUpload}
+                    onChange={handleFileChange}
                   />
                 </div>
 
-                <div className="features-grid">
-                  <div className="feature-card charts">
-                    <h4>Charts & Graphs</h4>
-                    <p>Automatically converts Excel charts to PowerPoint</p>
-                  </div>
-                  <div className="feature-card tables">
-                    <h4>Data Tables</h4>
-                    <p>Preserves table formatting and structure</p>
-                  </div>
-                </div>
-
-                {/* Single Convert + Edit/Preview Button */}
                 <button
                   className="convert-btn"
                   onClick={() => {
@@ -202,67 +184,32 @@ export default function ExcelToPPT() {
                   }}
                   disabled={isLoading}
                 >
-                  {isLoading
-                    ? "Converting..."
-                    : convertedSlides
-                    ? "Edit & Preview Slides"
-                    : "Convert to PowerPoint"}
+                  {isLoading ? (
+                    <div className="progress-bar-container">
+                      <div className="progress-bar-indeterminate"></div>
+                      <span className="progress-text">{loadingText}</span>
+                    </div>
+                  ) : convertedSlides ? (
+                    "📝 Edit & Preview Slides"
+                  ) : (
+                    "Convert to PowerPoint"
+                  )}
                 </button>
               </section>
 
               {/* Customize */}
               <section className="card">
                 <h2>Customize Your Presentation</h2>
-                <div className="checkbox-grid">
-                  <label>
-                    <input type="checkbox" defaultChecked /> Include Charts
-                  </label>
-                  <label>
-                    <input type="checkbox" defaultChecked /> Preserve Formatting
-                  </label>
-                  <label>
-                    <input type="checkbox" defaultChecked /> Summary Slide
-                  </label>
-                  <label>
-                    <input type="checkbox" /> One Slide Per Sheet
-                  </label>
-                  <label>
-                    <input type="checkbox" defaultChecked /> Include Data Tables
-                  </label>
-                </div>
-
-                <div className="customize-grid">
-                  <div className="input-group">
-                    <label>Number of Slides</label>
-                    <input
-                      type="range"
-                      min="3"
-                      max="20"
-                      value={slidesCount}
-                      onChange={(e) => setSlidesCount(parseInt(e.target.value))}
-                    />
-                    <span>{slidesCount} slides</span>
-                  </div>
-
-                  <div className="input-group">
-                    <label>Presentation Style</label>
-                    <select>
-                      <option>Professional</option>
-                      <option>Modern</option>
-                      <option>Colorful</option>
-                      <option>Minimal</option>
-                    </select>
-                  </div>
-
-                  <div className="input-group">
-                    <label>Slide Layout</label>
-                    <select>
-                      <option>Auto Layout</option>
-                      <option>Dashboard Style</option>
-                      <option>Individual Charts</option>
-                      <option>Data Focused</option>
-                    </select>
-                  </div>
+                <div className="input-group">
+                  <label>Number of Slides</label>
+                  <input
+                    type="range"
+                    min="3"
+                    max="20"
+                    value={slidesCount}
+                    onChange={(e) => setSlidesCount(parseInt(e.target.value))}
+                  />
+                  <span>{slidesCount} slides</span>
                 </div>
               </section>
             </div>
@@ -270,42 +217,23 @@ export default function ExcelToPPT() {
             {/* Sidebar */}
             <aside className="right-sidebar">
               <section className="card">
-                <h3>Processing Features</h3>
-                <ul>
-                  <li>Converts all chart types</li>
-                  <li>Preserves table formatting</li>
-                  <li>Smart slide layouts</li>
-                  <li>Professional design themes</li>
-                </ul>
+                <h3>How it Works</h3>
+                <ol>
+                  <li>Upload your Excel document.</li>
+                  <li>Choose number of slides.</li>
+                  <li>AI automatically creates your presentation.</li>
+                  <li>Preview & edit slides interactively before download.</li>
+                </ol>
               </section>
 
               <section className="card">
-                <h3>Supported Charts</h3>
+                <h3>Tips</h3>
                 <ul>
-                  <li>Bar & Column Charts</li>
-                  <li>Line & Area Charts</li>
-                  <li>Pie & Doughnut Charts</li>
-                  <li>Scatter Plots</li>
-                  <li>Combo Charts</li>
-                  <li>Pivot Charts</li>
+                  <li>Include well-structured headers for better results.</li>
+                  <li>Charts are automatically converted into slides.</li>
+                  <li>Keep large files under 50MB.</li>
+                  <li>Use 5–15 slides for balanced detail.</li>
                 </ul>
-              </section>
-
-              <section className="card">
-                <h3>File Requirements</h3>
-                <ul>
-                  <li>Formats: .xlsx, .xls</li>
-                  <li>Max Size: 50MB</li>
-                  <li>Well-structured headers recommended</li>
-                </ul>
-              </section>
-
-              <section className="card">
-                <h3>Processing Time</h3>
-                <p className="processing-time">1–2 minutes</p>
-                <p className="small-text">
-                  For typical Excel files with charts
-                </p>
               </section>
             </aside>
           </div>

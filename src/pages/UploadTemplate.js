@@ -90,7 +90,7 @@ export default function UploadTemplate() {
         <nav className="sidebar-links">
           <div className="top-links">
             <Link to="/dashboard"><i className="fa fa-home" /> Dashboard</Link>
-            <Link to="/conversion"><i className="fa fa-history" /> Conversions</Link>
+            <Link to="/conversion"><i className="fa fa-history" /> Drafts</Link>
             <Link to="/settings"><i className="fa fa-cog" /> Settings</Link>
             <Link to="/uploadTemplate" className="upload-btn active">
               <FaUpload className="icon" /> Upload Template

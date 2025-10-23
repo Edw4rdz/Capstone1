@@ -1,29 +1,22 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-// import PptxGen from "pptxgenjs"; // <-- Removed: This moves to the new edit page
-import { 
-  FaSignOutAlt, 
-  FaUpload, 
-  FaMagic, 
-  // FaDownload, // <-- Removed: This moves to the new edit page
-  FaEdit // <-- Added: For the new button
-} from "react-icons/fa";
-import { generateSlides } from "../api"; // Axios call to your /ai-generator
+import { FaSignOutAlt, FaUpload, FaMagic, FaEdit } from "react-icons/fa";
+import axios from "axios";
 import "./ai-generator.css";
 
 export default function AIGenerator() {
   const [slides, setSlides] = useState(10);
   const [topic, setTopic] = useState("");
-  const [loading, setLoading] = useState(false);
-  
-  // --- ADDED: State for loading message ---
+  const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
-  // --- END ADDED ---
-  
-  const [preview, setPreview] = useState([]); // This state now just holds the data
+  const [convertedSlides, setConvertedSlides] = useState([]);
+  const [downloadUrl, setDownloadUrl] = useState(null);
+
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
+  // Logout
   const handleLogout = () => {
     if (!window.confirm("Are you sure you want to log out?")) return;
     setLoggingOut(true);
@@ -32,67 +25,61 @@ export default function AIGenerator() {
     setTimeout(() => navigate("/login"), 1200);
   };
 
+  // Generate slides
   const handleGenerate = async () => {
     if (!topic.trim()) return alert("Please enter a topic first!");
+    if (!loggedInUser?.user_id) return alert("User not logged in.");
 
-    // --- MODIFIED: Set loading and initial text ---
-    setLoading(true);
-    setLoadingText("Generating slide content..."); // <-- Step 1 Text
-    // --- END MODIFIED ---
-    
-    setPreview([]); // Reset preview data
+    setIsLoading(true);
+    setLoadingText("Initializing AI generation...");
+    setConvertedSlides([]);
+    setDownloadUrl(null);
 
     try {
-      const res = await generateSlides({ topic, slides });
-      if (!res.data.success) throw new Error("Failed to generate slides");
+      // Call backend
+      const res = await axios.post("http://localhost:5000/ai-generator", {
+        topic,
+        slides,
+        userId: loggedInUser.user_id,
+        fileName: topic,
+      });
 
-      // --- ADDED: Set text for the next step ---
-      setLoadingText("Processing slides and layout..."); // <-- Step 2 Text
-      // --- END ADDED ---
+      if (!res.data.success || !res.data.slides) {
+        throw new Error("Failed to generate slides");
+      }
 
-      // We just need to add the ID to the data.
-      const finalSlides = res.data.slides.map((s, idx) => ({
-        ...s,
-        id: idx, // Add the unique ID for the edit page
-      }));
-      // --- END MODIFICATION ---
+      setLoadingText("Generating slide content and images...");
 
-      setPreview(finalSlides); // Set the slide data
-      alert("Slides generated. Click 'Edit & Preview' to continue!");
-    } catch (err)
-      {
+      // Assign unique IDs for Edit & Preview
+      const slidesWithId = res.data.slides.map((s, idx) => ({ ...s, id: idx }));
+
+      setConvertedSlides(slidesWithId);
+      setDownloadUrl(res.data.downloadUrl);
+
+      setLoadingText("Slides generated successfully!");
+    } catch (err) {
       console.error(err);
-      alert("Error generating slides: " + err.message);
+      alert("AI slide generation failed: " + err.response?.data?.error || err.message);
     } finally {
-      // --- MODIFIED: Reset loading and text ---
-      setLoading(false);
-      setLoadingText(""); // <-- Reset text
-      // --- END MODIFIED ---
+      setIsLoading(false);
+      setLoadingText("");
     }
   };
 
-  // --- ADDED ---
-  /**
-   * This new function navigates to the edit page, passing
-   * the generated slide data and topic in the navigation state.
-   */
+  // Navigate to Edit & Preview page
   const handleNavigateToEdit = () => {
-    if (!preview || preview.length === 0) return alert("Please generate slides first!");
-    
-    // Navigate to the new page and pass data
-    navigate('/edit-preview', { 
-      state: { 
-        slides: preview, // Pass the slide data
-        topic: topic      // Pass the topic for the download filename
-      } 
+    if (!convertedSlides || convertedSlides.length === 0) {
+      return alert("Please generate slides first!");
+    }
+
+    navigate("/edit-preview", {
+      state: {
+        slides: convertedSlides,
+        topic,
+        downloadUrl,
+      },
     });
   };
-  // --- END ADDED ---
-
-  // --- REMOVED ---
-  // The 'handleDownload' function is removed from this file.
-  // It now lives in 'EditPreview.js'.
-  // --- END REMOVED ---
 
   return (
     <div className="ai-dashboard">
@@ -107,18 +94,10 @@ export default function AIGenerator() {
         </div>
         <nav className="ai-nav">
           <div className="top-links">
-            <Link to="/dashboard" className="active">
-              <i className="fa fa-home"></i> Dashboard
-            </Link>
-            <Link to="/conversion">
-              <i className="fa fa-history"></i> Conversions
-            </Link>
-            <Link to="/settings">
-              <i className="fa fa-cog"></i> Settings
-            </Link>
-            <Link to="/uploadTemplate" className="upload-btn">
-              <FaUpload className="icon" /> Upload Template
-            </Link>
+            <Link to="/dashboard" className="active"><i className="fa fa-home"></i> Dashboard</Link>
+            <Link to="/conversion"><i className="fa fa-history"></i> Drafts</Link>
+            <Link to="/settings"><i className="fa fa-cog"></i> Settings</Link>
+            <Link to="/uploadTemplate" className="upload-btn"><FaUpload className="icon" /> Upload Template</Link>
           </div>
           <div className="bottom-links">
             <div className="logout-btn" onClick={handleLogout}>
@@ -136,29 +115,28 @@ export default function AIGenerator() {
             <div className="headera-icon">AI</div>
             <div>
               <h1>AI PowerPoint Generator</h1>
-              <p>
-                Create professional presentations from any topic using AI
-              </p>
+              <p>Create professional presentations from any topic using AI</p>
             </div>
           </header>
+
           <div className="ai-content">
+            {/* Left */}
             <div className="ai-left">
               <div className="ai-card ai-card-top">
                 <h2>What's your presentation about?</h2>
                 <label className="ai-section-label">Presentation Topic</label>
                 <textarea
-                  placeholder="Describe your presentation topic in detail..."
+                  placeholder="Describe your presentation topic..."
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                 ></textarea>
 
-                {/* --- MODIFIED: This button now shows the progress bar --- */}
                 <button
                   className="generateAI-btn"
                   onClick={handleGenerate}
-                  disabled={!topic.trim() || loading}
+                  disabled={!topic.trim() || isLoading}
                 >
-                  {loading ? (
+                  {isLoading ? (
                     <div className="progress-bar-container">
                       <div className="progress-bar-indeterminate"></div>
                       <span className="progress-text">{loadingText}</span>
@@ -167,24 +145,16 @@ export default function AIGenerator() {
                     <><FaMagic /> Generate Presentation</>
                   )}
                 </button>
-                {/* --- END MODIFIED --- */}
 
-                {/* --- MODIFIED --- */}
-                {/* This block replaces the old preview box */}
-                {preview.length > 0 && !loading && (
+                {convertedSlides.length > 0 && !isLoading && (
                   <div className="generation-complete-box">
                     <h3>Slides Generated!</h3>
-                    <p>Your {preview.length} slides are ready to be edited and downloaded.</p>
-                    <button 
-                      className="preview-edit-btn" // Use the new CSS class
-                      onClick={handleNavigateToEdit}
-                    >
+                    <p>Your {convertedSlides.length} slides are ready to edit.</p>
+                    <button className="preview-edit-btn" onClick={handleNavigateToEdit}>
                       <FaEdit /> Edit & Preview Slides
                     </button>
                   </div>
                 )}
-                {/* --- END MODIFICATION --- */}
-                
               </div>
 
               <div className="ai-card">
@@ -204,22 +174,14 @@ export default function AIGenerator() {
               </div>
             </div>
 
+            {/* Right */}
             <div className="ai-right">
               <div className="ai-info-box">
                 <h3>How it works</h3>
                 <ol>
-                  <li>
-                    <strong>Describe your topic</strong>
-                    <br />Tell us what your presentation should cover
-                  </li>
-                  <li>
-                    <strong>AI creates structure</strong>
-                    <br />Our AI analyzes and creates an outline
-                  </li>
-                  <li>
-                    <strong>Generate slides</strong>
-                    <br />Professional slides are created automatically
-                  </li>
+                  <li>Describe your topic.</li>
+                  <li>AI generates the slides.</li>
+                  <li>Preview and edit before download.</li>
                 </ol>
               </div>
               <div className="ai-info-box">

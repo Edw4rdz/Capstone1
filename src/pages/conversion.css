@@ -130,3 +130,61 @@
   font-size: 0.9rem;
   margin-top: 20px;
 }
+.conversion-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.edit-btn, .delete-btn {
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: 0.2s ease;
+}
+
+.edit-btn {
+  background-color: #4caf50;
+  color: white;
+}
+
+.edit-btn:hover {
+  background-color: #43a047;
+}
+
+.delete-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #e53935;
+}
+.slide-preview {
+  margin-top: 10px;
+  padding: 10px;
+  border-top: 1px solid #ddd;
+}
+
+.slide-preview h4 {
+  font-size: 1.1em;
+  margin-bottom: 8px;
+}
+
+.slide-preview ul {
+  list-style: none;
+  padding: 0;
+}
+
+.slide-preview li {
+  margin-bottom: 10px;
+}
+
+.slide-preview img {
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}

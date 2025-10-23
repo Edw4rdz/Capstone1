@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-
+import AWS from "aws-sdk";
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
@@ -22,6 +22,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
+const s3 = new AWS.S3();
 
 // ---------------- Middleware ---------------- //
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
@@ -34,7 +35,11 @@ app.use(
     saveUninitialized: true,
   })
 );
-
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
 // Serve static uploaded templates
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
@@ -45,6 +50,20 @@ if (!admin.apps.length) {
   });
 }
 const db = admin.firestore();
+// ---------------- Save Conversion to Firestore ---------------- //
+async function saveConversion(userId, fileName, type, status = "Processing", downloadUrl = null) {
+  const conversionRef = db.collection("conversions").doc(userId).collection("user_conversions");
+  const docRef = await conversionRef.add({
+    fileName,
+    type,
+    status,
+    progress: 0,
+    downloadUrl,
+    uploadedAt: admin.firestore.Timestamp.now(),
+  });
+  return docRef.id;
+}
+
 
 // ---------------- Gemini API ---------------- //
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -150,17 +169,99 @@ app.post("/login", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+export const uploadToS3 = async (fileBuffer, fileName, mimeType) => {
+  const params = {
+    Bucket: process.env.AWS_S3_BUCKET,
+    Key: fileName,
+    Body: fileBuffer,
+    ContentType: mimeType,
+  };
+
+  try {
+    const data = await s3.upload(params).promise();
+    console.log("✅ Uploaded:", data.Location);
+    return data.Location; // URL for download
+  } catch (err) {
+    console.error("❌ S3 Upload Error:", err);
+    throw err;
+  }
+};
+app.get("/api/conversions", async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+  try {
+    const ref = db.collection("conversions").doc(userId).collection("user_conversions");
+    const snapshot = await ref.orderBy("uploadedAt", "desc").get();
+
+    const conversions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      // Ensure slides and downloadUrl are included
+      slides: doc.data().slides || [],
+      downloadUrl: doc.data().downloadUrl || null,
+    }));
+
+    res.json(conversions);
+  } catch (err) {
+    console.error("Error fetching conversions:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/conversions/:id", async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.query;
+  if (!id || !userId) {
+    return res.status(400).json({ error: "Missing id or userId" });
+  }
+
+  try {
+    const ref = db.collection("conversions").doc(userId).collection("user_conversions").doc(id);
+    const doc = await ref.get();
+    
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Conversion not found" });
+    }
+
+    await ref.delete();
+    console.log(`✅ Deleted conversion ${id} for user ${userId}`);
+    res.json({ success: true, message: "Conversion deleted successfully" });
+  } catch (err) {
+    console.error(`❌ Error deleting conversion ${id} for user ${userId}:`, err);
+    res.status(500).json({ error: `Failed to delete conversion: ${err.message}` });
+  }
+});
 
 // ---------------- AI Generator Route ---------------- //
 app.post("/ai-generator", async (req, res) => {
-  const { topic, slides } = req.body || {};
-  if (!topic || !slides)
-    return res
-      .status(400)
-      .json({ success: false, error: "Missing topic or slides" });
+  const { topic, slides, userId, fileName } = req.body || {};
+  if (!topic || !slides || !userId || !fileName)
+    return res.status(400).json({ error: "Missing required fields" });
+
+  let conversionId = null;
 
   try {
-    // Step 1️⃣ Ask AI for slide content + image prompts
+    // 🧩 Step 1: Save "Processing" record in Firestore
+    const conversionRef = db
+      .collection("conversions")
+      .doc(userId)
+      .collection("user_conversions");
+
+    const docRef = await conversionRef.add({
+      fileName,
+      type: "AI",
+      status: "Processing",
+      progress: 10,
+      downloadUrl: null,
+      slides: [], // Initialize slides array
+      uploadedAt: admin.firestore.Timestamp.now(),
+    });
+
+    conversionId = docRef.id;
+    console.log(`🤖 Created Firestore record for AI generation: ${conversionId}`);
+
+    // 🧠 Step 2: Ask AI for slide content + image prompts
     const prompt = `
       Create a presentation with ${slides} slides about: "${topic}".
       Each slide must have:
@@ -181,44 +282,85 @@ app.post("/ai-generator", async (req, res) => {
     const rawText = await extractResponseText(result);
     const slideData = ensureSlidesArray(JSON.parse(rawText));
 
-    // Step 2️⃣ Image generation function (Pollinations or similar)
+    // 🔄 Update progress
+    await conversionRef.doc(conversionId).update({ progress: 40 });
+
+    // 🧱 Step 3: Image generation function
     async function generateImage(prompt, retries = 2) {
       const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-          const response = await axios.get(url, {
-            responseType: "arraybuffer",
-            timeout: 20000,
-          });
+          const response = await axios.get(url, { responseType: "arraybuffer", timeout: 20000 });
           return Buffer.from(response.data, "binary").toString("base64");
         } catch (err) {
-          console.warn(`Pollinations failed (attempt ${attempt + 1}):`, err.message);
+          console.warn(`⚠️ Pollinations failed (attempt ${attempt + 1}):`, err.message);
           if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
         }
       }
       return null;
     }
 
-    // Step 3️⃣ Generate images per slide (batching optional)
+    // 🧩 Step 4: Generate images per slide
     const slidesWithImages = [];
     for (const slide of slideData) {
-      const imgPrompt =
-        slide.imagePrompt ||
-        `${slide.title || topic} — ${slide.bullets?.join(", ") || ""}`;
+      const imgPrompt = slide.imagePrompt || `${slide.title || topic} — ${slide.bullets?.join(", ") || ""}`;
       const imageBase64 = await generateImage(imgPrompt);
       slidesWithImages.push({ ...slide, imageBase64 });
-      await new Promise((r) => setTimeout(r, 2000)); // optional delay
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
-    // Step 4️⃣ Return full slides
-    res.json({ success: true, slides: slidesWithImages });
+    // 🔄 Update progress and save slides
+    await conversionRef.doc(conversionId).update({
+      progress: 80,
+      slides: slidesWithImages,
+    });
+
+    // 📦 Step 5: Generate PPTX and upload to S3
+    const pptx = new PPTXGenJS();
+    for (const s of slidesWithImages) {
+      const slide = pptx.addSlide();
+      const margin = 0.5;
+      const textWidth = 5.0;
+      const imageWidth = 4.5;
+
+      slide.addText(s.title || "Untitled", { x: margin, y: margin, w: textWidth - margin, fontSize: 28, bold: true, color: "203864" });
+
+      if (s.bullets?.length) {
+        const bulletText = s.bullets.map((b) => `• ${b}`).join("\n");
+        slide.addText(bulletText, { x: margin, y: 1.2, w: textWidth - margin, fontSize: 18, color: "333333", lineSpacing: 28 });
+      }
+
+      if (s.imageBase64) {
+        try {
+          const imgBase64 = `data:image/png;base64,${s.imageBase64}`;
+          slide.addImage({ data: imgBase64, x: textWidth + margin, y: 1.0, w: imageWidth, h: 4.5 });
+        } catch (imgErr) {
+          console.warn(`⚠️ Skipping invalid image for "${s.title}":`, imgErr);
+        }
+      }
+    }
+
+    const buffer = await pptx.write("nodebuffer");
+    const s3Key = `conversions/${userId}/${conversionId}.pptx`;
+    const downloadUrl = await uploadToS3(buffer, s3Key, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+
+    // ✅ Step 6: Mark as completed
+    await conversionRef.doc(conversionId).update({ status: "Completed", progress: 100, downloadUrl });
+
+    console.log(`✅ AI Generation ${conversionId} completed successfully`);
+    res.json({ success: true, slides: slidesWithImages, downloadUrl });
   } catch (err) {
-    console.error("AI Generator failed:", err);
-    res
-      .status(500)
-      .json({ success: false, error: "AI Generator failed: " + err.message });
+    console.error("❌ AI Generation failed:", err);
+
+    if (conversionId) {
+      await conversionRef.doc(conversionId).update({ status: "Failed", progress: 100 });
+    }
+
+    res.status(500).json({ error: "AI Generation failed: " + err.message });
   }
 });
+
+
 
 
 // ---------------- Download PPTX ---------------- //
@@ -298,12 +440,33 @@ app.post("/download-pptx", async (req, res) => {
 // ---------------- Convert PDF → PPT (with images using Pollinations) ---------------- //
 // ---------------- Convert PDF → PPT (Optimized with Pollinations batching + retries) ---------------- //
 app.post("/convert-pdf", async (req, res) => {
-  const { base64PDF, slides } = req.body || {};
-  if (!base64PDF || !slides)
-    return res.status(400).json({ error: "Missing base64PDF or slides" });
+  const { base64PDF, slides, userId, fileName } = req.body || {};
+  if (!base64PDF || !slides || !userId || !fileName)
+    return res.status(400).json({ error: "Missing required fields" });
+
+  let conversionId = null;
 
   try {
-    // 🧠 Step 1: Ask Gemini to generate slide text + image prompts
+    // 🧩 Step 1: Save "Processing" record in Firestore
+    const conversionRef = db
+      .collection("conversions")
+      .doc(userId)
+      .collection("user_conversions");
+
+    const docRef = await conversionRef.add({
+      fileName,
+      type: "PDF",
+      status: "Processing",
+      progress: 10,
+      downloadUrl: null,
+      slides: [], // Initialize slides array
+      uploadedAt: admin.firestore.Timestamp.now(),
+    });
+
+    conversionId = docRef.id;
+    console.log(`📄 Created Firestore record for conversion: ${conversionId}`);
+
+    // 🧠 Step 2: Ask Gemini to generate slide text + image prompts
     const textPrompt = `
       Analyze this PDF and create ${slides} PowerPoint slides.
       Each slide must include:
@@ -332,17 +495,19 @@ app.post("/convert-pdf", async (req, res) => {
     const rawText = await extractResponseText(textResult);
     const slidesData = ensureSlidesArray(JSON.parse(rawText));
 
-    // 🧩 Step 2: Pollinations image generator with retries + delay
+    // 🔄 Update progress
+    await conversionRef.doc(conversionId).update({ progress: 40 });
+
+    // 🧱 Step 3: Pollinations image generator with retries
     async function generateImage(prompt, retries = 2) {
       const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
           const response = await axios.get(url, {
             responseType: "arraybuffer",
-            timeout: 20000, // 20s timeout
+            timeout: 20000,
           });
-          const base64 = Buffer.from(response.data, "binary").toString("base64");
-          return base64;
+          return Buffer.from(response.data, "binary").toString("base64");
         } catch (err) {
           console.warn(`⚠️ Pollinations failed (attempt ${attempt + 1}):`, err.message);
           if (attempt < retries) await new Promise((r) => setTimeout(r, 2000));
@@ -351,7 +516,7 @@ app.post("/convert-pdf", async (req, res) => {
       return null;
     }
 
-    // 🧱 Step 3: Batch requests to avoid rate limits (5 per batch)
+    // 🧩 Step 4: Generate images in batches
     const slidesWithImages = [];
     const batchSize = 5;
 
@@ -368,36 +533,132 @@ app.post("/convert-pdf", async (req, res) => {
         const imageBase64 = await generateImage(imgPrompt);
         slidesWithImages.push({ ...slide, imageBase64 });
 
-        await new Promise((r) => setTimeout(r, 2000)); // 2s per image
+        await new Promise((r) => setTimeout(r, 2000)); // avoid rate limits
       }
 
-      console.log(`✅ Completed batch of ${batch.length} slides, waiting before next...`);
-      await new Promise((r) => setTimeout(r, 5000)); // 5s cooldown between batches
+      console.log(`✅ Completed batch of ${batch.length} slides.`);
+      await new Promise((r) => setTimeout(r, 5000)); // cooldown
     }
 
-    // ✅ Step 4: Return full slides (text + base64 images)
-    res.json({ success: true, slides: slidesWithImages });
+    // 🔄 Update progress and save slides
+    await conversionRef.doc(conversionId).update({
+      progress: 80,
+      slides: slidesWithImages, // Save slide data
+    });
+
+    // 📦 Step 5: Generate and upload PPTX to S3
+    const pptx = new PPTXGenJS();
+    for (const s of slidesWithImages) {
+      const slide = pptx.addSlide();
+      const margin = 0.5;
+      const textWidth = 5.0;
+      const imageWidth = 4.5;
+
+      slide.addText(s.title || "Untitled", {
+        x: margin,
+        y: margin,
+        w: textWidth - margin,
+        fontSize: 28,
+        bold: true,
+        color: "203864",
+      });
+
+      if (s.bullets?.length) {
+        const bulletText = s.bullets.map((b) => `• ${b}`).join("\n");
+        slide.addText(bulletText, {
+          x: margin,
+          y: 1.2,
+          w: textWidth - margin,
+          fontSize: 18,
+          color: "333333",
+          lineSpacing: 28,
+        });
+      }
+
+      if (s.imageBase64) {
+        try {
+          const imgBase64 = `data:image/png;base64,${s.imageBase64}`;
+          slide.addImage({
+            data: imgBase64,
+            x: textWidth + margin,
+            y: 1.0,
+            w: imageWidth,
+            h: 4.5,
+          });
+        } catch (imgErr) {
+          console.warn(`⚠️ Skipping invalid image for "${s.title}":`, imgErr);
+        }
+      }
+    }
+
+    const buffer = await pptx.write("nodebuffer");
+    const s3Key = `conversions/${userId}/${conversionId}.pptx`;
+    const downloadUrl = await uploadToS3(
+      buffer,
+      s3Key,
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    );
+
+    // ✅ Step 6: Mark as completed
+    await conversionRef.doc(conversionId).update({
+      status: "Completed",
+      progress: 100,
+      downloadUrl,
+    });
+
+    console.log(`✅ Conversion ${conversionId} completed successfully`);
+    res.json({ success: true, slides: slidesWithImages, downloadUrl });
   } catch (err) {
     console.error("❌ PDF Conversion failed:", err);
+
+    if (conversionId) {
+      await conversionRef.doc(conversionId).update({
+        status: "Failed",
+        progress: 100,
+      });
+    }
+
     res.status(500).json({ error: "Conversion failed: " + err.message });
   }
 });
 
 
-
 // ---------------- Convert Word → PPT (with images using Pollinations) ---------------- //
 app.post("/convert-word", async (req, res) => {
-  const { base64Word, slides } = req.body || {};
-  if (!base64Word || !slides)
-    return res.status(400).json({ error: "Missing base64Word or slides" });
+  const { base64Word, slides, userId, fileName } = req.body || {};
+  if (!base64Word || !slides || !userId || !fileName)
+    return res.status(400).json({ error: "Missing required fields" });
+
+  let conversionId = null;
 
   try {
+    // 🧩 Step 1: Save "Processing" record in Firestore
+    const conversionRef = db
+      .collection("conversions")
+      .doc(userId)
+      .collection("user_conversions");
+
+    const docRef = await conversionRef.add({
+      fileName,
+      type: "Word",
+      status: "Processing",
+      progress: 10,
+      downloadUrl: null,
+      slides: [], // Initialize slides array
+      uploadedAt: admin.firestore.Timestamp.now(),
+    });
+
+    conversionId = docRef.id;
+    console.log(`📄 Created Firestore record for conversion: ${conversionId}`);
+
+    // 🧠 Step 2: Extract text from Word
     const buffer = Buffer.from(base64Word, "base64");
     const { value: text } = await mammoth.extractRawText({ buffer });
 
     if (!text || text.trim().length === 0)
-      return res.status(400).json({ error: "No readable text found in Word document" });
+      throw new Error("No readable text found in Word document");
 
+    // 🧠 Step 3: Ask Gemini to generate slide text + image prompts
     const textPrompt = `
       Convert the following Word document into ${slides} PowerPoint slides.
       Each slide must include:
@@ -422,11 +683,18 @@ app.post("/convert-word", async (req, res) => {
     const rawText = await extractResponseText(textResult);
     const slidesData = ensureSlidesArray(JSON.parse(rawText));
 
+    // 🔄 Update progress
+    await conversionRef.doc(conversionId).update({ progress: 40 });
+
+    // 🧱 Step 4: Pollinations image generator with retries
     async function generateImage(prompt, retries = 2) {
       const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-          const response = await axios.get(url, { responseType: "arraybuffer", timeout: 20000 });
+          const response = await axios.get(url, {
+            responseType: "arraybuffer",
+            timeout: 20000,
+          });
           return Buffer.from(response.data, "binary").toString("base64");
         } catch (err) {
           console.warn(`⚠️ Pollinations failed (attempt ${attempt + 1}):`, err.message);
@@ -436,6 +704,7 @@ app.post("/convert-word", async (req, res) => {
       return null;
     }
 
+    // 🧩 Step 5: Generate images in batches
     const slidesWithImages = [];
     const batchSize = 5;
 
@@ -443,31 +712,134 @@ app.post("/convert-word", async (req, res) => {
       const batch = slidesData.slice(i, i + batchSize);
 
       for (const slide of batch) {
-        const imgPrompt = slide.imagePrompt || slide.title || "illustration related to topic";
+        const imgPrompt =
+          slide.imagePrompt ||
+          `${slide.title || "presentation topic"} — ${slide.bullets?.join(", ") || ""}`;
+
         console.log(`🖼 Generating image for slide: ${imgPrompt}`);
+
         const imageBase64 = await generateImage(imgPrompt);
         slidesWithImages.push({ ...slide, imageBase64 });
-        await new Promise((r) => setTimeout(r, 2000));
+
+        await new Promise((r) => setTimeout(r, 2000)); // avoid rate limits
       }
 
-      console.log(`✅ Completed batch of ${batch.length} slides, waiting before next...`);
-      await new Promise((r) => setTimeout(r, 5000));
+      console.log(`✅ Completed batch of ${batch.length} slides.`);
+      await new Promise((r) => setTimeout(r, 5000)); // cooldown
     }
 
-    res.json({ success: true, slides: slidesWithImages });
+    // 🔄 Update progress and save slides
+    await conversionRef.doc(conversionId).update({
+      progress: 80,
+      slides: slidesWithImages, // Save slide data
+    });
+
+    // 📦 Step 6: Generate and upload PPTX to S3
+    const pptx = new PPTXGenJS();
+    for (const s of slidesWithImages) {
+      const slide = pptx.addSlide();
+      const margin = 0.5;
+      const textWidth = 5.0;
+      const imageWidth = 4.5;
+
+      slide.addText(s.title || "Untitled", {
+        x: margin,
+        y: margin,
+        w: textWidth - margin,
+        fontSize: 28,
+        bold: true,
+        color: "203864",
+      });
+
+      if (s.bullets?.length) {
+        const bulletText = s.bullets.map((b) => `• ${b}`).join("\n");
+        slide.addText(bulletText, {
+          x: margin,
+          y: 1.2,
+          w: textWidth - margin,
+          fontSize: 18,
+          color: "333333",
+          lineSpacing: 28,
+        });
+      }
+
+      if (s.imageBase64) {
+        try {
+          const imgBase64 = `data:image/png;base64,${s.imageBase64}`;
+          slide.addImage({
+            data: imgBase64,
+            x: textWidth + margin,
+            y: 1.0,
+            w: imageWidth,
+            h: 4.5,
+          });
+        } catch (imgErr) {
+          console.warn(`⚠️ Skipping invalid image for "${s.title}":`, imgErr);
+        }
+      }
+    }
+
+    const bufferPPTX = await pptx.write("nodebuffer");
+    const s3Key = `conversions/${userId}/${conversionId}.pptx`;
+    const downloadUrl = await uploadToS3(
+      bufferPPTX,
+      s3Key,
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    );
+
+    // ✅ Step 7: Mark as completed
+    await conversionRef.doc(conversionId).update({
+      status: "Completed",
+      progress: 100,
+      downloadUrl,
+    });
+
+    console.log(`✅ Word Conversion ${conversionId} completed successfully`);
+    res.json({ success: true, slides: slidesWithImages, downloadUrl, conversionId });
   } catch (err) {
     console.error("❌ Word Conversion failed:", err);
+
+    if (conversionId) {
+      await conversionRef.doc(conversionId).update({
+        status: "Failed",
+        progress: 100,
+      });
+    }
+
     res.status(500).json({ error: "Conversion failed: " + err.message });
   }
 });
 
+
 // ---------------- Convert Text → PPT ---------------- //
 app.post("/convert-text", async (req, res) => {
-  const { textContent, slides } = req.body || {};
-  if (!textContent || !slides)
-    return res.status(400).json({ error: "Missing text content or slide count" });
+  const { textContent, slides, userId, fileName } = req.body || {};
+  if (!textContent || !slides || !userId || !fileName)
+    return res.status(400).json({ error: "Missing required fields" });
+
+  let conversionId = null;
 
   try {
+    // 🧩 Step 1: Save "Processing" record in Firestore
+    const conversionRef = db
+      .collection("conversions")
+      .doc(userId)
+      .collection("user_conversions");
+
+    const docRef = await conversionRef.add({
+      fileName,
+      type: "Text",
+      status: "Processing",
+      progress: 10,
+      downloadUrl: null,
+      slides: [],
+      uploadedAt: admin.firestore.Timestamp.now(),
+    });
+
+    conversionId = docRef.id;
+    console.log(`📄 Created Firestore record for conversion: ${conversionId}`);
+
+    // 🧠 Step 2: Ask Gemini/OpenAI to generate slide text + image prompts
     const prompt = `
       Convert the following text into ${slides} PowerPoint slides.
       Each slide must include:
@@ -475,7 +847,7 @@ app.post("/convert-text", async (req, res) => {
       - 3–5 bullet points
       - An "imagePrompt" describing a fitting image
 
-      Respond ONLY in JSON:
+      Respond ONLY in JSON in this format:
       [
         { "title": "Slide title", "bullets": ["point1", "point2"], "imagePrompt": "image idea" }
       ]
@@ -492,11 +864,18 @@ app.post("/convert-text", async (req, res) => {
     const rawText = await extractResponseText(result);
     const slidesData = ensureSlidesArray(JSON.parse(rawText));
 
+    // 🔄 Update progress
+    await conversionRef.doc(conversionId).update({ progress: 40 });
+
+    // 🧱 Step 3: Pollinations image generator with retries
     async function generateImage(prompt, retries = 2) {
       const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-          const response = await axios.get(url, { responseType: "arraybuffer", timeout: 20000 });
+          const response = await axios.get(url, {
+            responseType: "arraybuffer",
+            timeout: 20000,
+          });
           return Buffer.from(response.data, "binary").toString("base64");
         } catch (err) {
           console.warn(`⚠️ Pollinations failed (attempt ${attempt + 1}):`, err.message);
@@ -506,6 +885,7 @@ app.post("/convert-text", async (req, res) => {
       return null;
     }
 
+    // 🖼 Step 4: Generate images in batches
     const slidesWithImages = [];
     const batchSize = 5;
 
@@ -520,24 +900,117 @@ app.post("/convert-text", async (req, res) => {
         await new Promise((r) => setTimeout(r, 2000));
       }
 
-      console.log(`✅ Completed batch of ${batch.length} slides, waiting before next...`);
-      await new Promise((r) => setTimeout(r, 5000));
+      console.log(`✅ Completed batch of ${batch.length} slides.`);
+      await new Promise((r) => setTimeout(r, 5000)); // cooldown
     }
 
-    res.json({ success: true, slides: slidesWithImages });
+    // 🔄 Update progress and save slides
+    await conversionRef.doc(conversionId).update({
+      progress: 80,
+      slides: slidesWithImages,
+    });
+
+    // 📦 Step 5: Generate PPTX
+    const pptx = new PPTXGenJS();
+    for (const s of slidesWithImages) {
+      const slide = pptx.addSlide();
+      const margin = 0.5;
+      const textWidth = 5.0;
+      const imageWidth = 4.5;
+
+      slide.addText(s.title || "Untitled", {
+        x: margin,
+        y: margin,
+        w: textWidth - margin,
+        fontSize: 28,
+        bold: true,
+        color: "203864",
+      });
+
+      if (s.bullets?.length) {
+        slide.addText(s.bullets.map((b) => `• ${b}`).join("\n"), {
+          x: margin,
+          y: 1.2,
+          w: textWidth - margin,
+          fontSize: 18,
+          color: "333333",
+          lineSpacing: 28,
+        });
+      }
+
+      if (s.imageBase64) {
+        try {
+          slide.addImage({
+            data: `data:image/png;base64,${s.imageBase64}`,
+            x: textWidth + margin,
+            y: 1.0,
+            w: imageWidth,
+            h: 4.5,
+          });
+        } catch (imgErr) {
+          console.warn(`⚠️ Skipping invalid image for "${s.title}":`, imgErr);
+        }
+      }
+    }
+
+    const buffer = await pptx.write("nodebuffer");
+    const s3Key = `conversions/${userId}/${conversionId}.pptx`;
+    const downloadUrl = await uploadToS3(
+      buffer,
+      s3Key,
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    );
+
+    // ✅ Step 6: Mark as completed
+    await conversionRef.doc(conversionId).update({
+      status: "Completed",
+      progress: 100,
+      downloadUrl,
+    });
+
+    console.log(`✅ Text Conversion ${conversionId} completed successfully`);
+    res.json({ success: true, slides: slidesWithImages, downloadUrl });
   } catch (err) {
     console.error("❌ Text Conversion failed:", err);
+    if (conversionId) {
+      await conversionRef.doc(conversionId).update({
+        status: "Failed",
+        progress: 100,
+      });
+    }
     res.status(500).json({ error: "Conversion failed: " + err.message });
   }
 });
 
-// ---------------- Convert Excel → PPT ---------------- //
+
 app.post("/convert-excel", async (req, res) => {
-  const { base64Excel, slides } = req.body || {};
-  if (!base64Excel || !slides)
-    return res.status(400).json({ error: "Missing Excel file or slide count" });
+  const { base64Excel, slides, userId, fileName } = req.body || {};
+  if (!base64Excel || !slides || !userId || !fileName)
+    return res.status(400).json({ error: "Missing required fields" });
+
+  let conversionId = null;
 
   try {
+    // 🧩 Step 1: Save "Processing" record in Firestore
+    const conversionRef = db
+      .collection("conversions")
+      .doc(userId)
+      .collection("user_conversions");
+
+    const docRef = await conversionRef.add({
+      fileName,
+      type: "Excel",
+      status: "Processing",
+      progress: 10,
+      downloadUrl: null,
+      slides: [],
+      uploadedAt: admin.firestore.Timestamp.now(),
+    });
+
+    conversionId = docRef.id;
+    console.log(`📊 Created Firestore record for conversion: ${conversionId}`);
+
+    // 🧱 Step 2: Parse Excel
     const buffer = Buffer.from(base64Excel, "base64");
     const workbook = XLSX.read(buffer, { type: "buffer" });
 
@@ -548,18 +1021,17 @@ app.post("/convert-excel", async (req, res) => {
       combinedText += `\n📄 Sheet: ${sheetName}\n${sheetData}\n`;
     });
 
+    // 🔄 Update progress
+    await conversionRef.doc(conversionId).update({ progress: 20 });
+
+    // 🧠 Step 3: Generate slide text + image prompts via Gemini
     const prompt = `
       Convert the following Excel content into ${slides} PowerPoint slides.
       Each slide must include:
       - A concise title (max 10 words)
       - 3–5 bullet points summarizing insights, totals, or patterns
       - An "imagePrompt" describing a relevant image for the slide
-
-      Respond ONLY in JSON:
-      [
-        { "title": "Slide title", "bullets": ["point1", "point2"], "imagePrompt": "image idea" }
-      ]
-
+      Respond ONLY in JSON.
       EXCEL CONTENT:
       ${combinedText}
     `;
@@ -570,19 +1042,20 @@ app.post("/convert-excel", async (req, res) => {
     });
 
     const rawText = await extractResponseText(result);
-    let slidesData;
-    try {
-      slidesData = JSON.parse(rawText);
-      if (!Array.isArray(slidesData)) throw new Error("Invalid JSON");
-    } catch {
-      slidesData = [{ title: "Summary", bullets: ["Could not parse Gemini output."], imagePrompt: "" }];
-    }
+    const slidesData = ensureSlidesArray(JSON.parse(rawText));
 
+    // 🔄 Update progress
+    await conversionRef.doc(conversionId).update({ progress: 40 });
+
+    // 🧩 Step 4: Pollinations image generator with retries
     async function generateImage(prompt, retries = 2) {
       const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-          const response = await axios.get(url, { responseType: "arraybuffer", timeout: 20000 });
+          const response = await axios.get(url, {
+            responseType: "arraybuffer",
+            timeout: 20000,
+          });
           return Buffer.from(response.data, "binary").toString("base64");
         } catch (err) {
           console.warn(`⚠️ Pollinations failed (attempt ${attempt + 1}):`, err.message);
@@ -592,6 +1065,7 @@ app.post("/convert-excel", async (req, res) => {
       return null;
     }
 
+    // 🧱 Step 5: Generate images in batches
     const slidesWithImages = [];
     const batchSize = 5;
 
@@ -599,23 +1073,97 @@ app.post("/convert-excel", async (req, res) => {
       const batch = slidesData.slice(i, i + batchSize);
 
       for (const slide of batch) {
-        const imgPrompt = slide.imagePrompt || slide.title || "Excel data illustration";
+        const imgPrompt =
+          slide.imagePrompt || slide.title || "Excel data illustration";
         console.log(`🖼 Generating image for slide: ${imgPrompt}`);
         const imageBase64 = await generateImage(imgPrompt);
         slidesWithImages.push({ ...slide, imageBase64 });
         await new Promise((r) => setTimeout(r, 2000));
       }
 
-      console.log(`✅ Completed batch of ${batch.length} slides, waiting before next...`);
-      await new Promise((r) => setTimeout(r, 5000));
+      console.log(`✅ Completed batch of ${batch.length} slides`);
+      await new Promise((r) => setTimeout(r, 5000)); // cooldown
     }
 
-    res.json({ success: true, slides: slidesWithImages });
+    // 🔄 Update progress
+    await conversionRef.doc(conversionId).update({
+      progress: 80,
+      slides: slidesWithImages,
+    });
+
+    // 📦 Step 6: Generate PPTX
+    const pptx = new PPTXGenJS();
+    for (const s of slidesWithImages) {
+      const slide = pptx.addSlide();
+      const margin = 0.5;
+      const textWidth = 5.0;
+      const imageWidth = 4.5;
+
+      slide.addText(s.title || "Untitled", {
+        x: margin,
+        y: margin,
+        w: textWidth - margin,
+        fontSize: 28,
+        bold: true,
+        color: "203864",
+      });
+
+      if (s.bullets?.length) {
+        slide.addText(s.bullets.map((b) => `• ${b}`).join("\n"), {
+          x: margin,
+          y: 1.2,
+          w: textWidth - margin,
+          fontSize: 18,
+          color: "333333",
+          lineSpacing: 28,
+        });
+      }
+
+      if (s.imageBase64) {
+        try {
+          const imgBase64 = `data:image/png;base64,${s.imageBase64}`;
+          slide.addImage({
+            data: imgBase64,
+            x: textWidth + margin,
+            y: 1.0,
+            w: imageWidth,
+            h: 4.5,
+          });
+        } catch (imgErr) {
+          console.warn(`⚠️ Skipping invalid image for "${s.title}":`, imgErr);
+        }
+      }
+    }
+
+    const bufferPPTX = await pptx.write("nodebuffer");
+    const s3Key = `conversions/${userId}/${conversionId}.pptx`;
+    const downloadUrl = await uploadToS3(
+      bufferPPTX,
+      s3Key,
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    );
+
+    // ✅ Step 7: Mark as completed
+    await conversionRef.doc(conversionId).update({
+      status: "Completed",
+      progress: 100,
+      downloadUrl,
+    });
+
+    console.log(`✅ Excel Conversion ${conversionId} completed`);
+    res.json({ success: true, slides: slidesWithImages, downloadUrl });
   } catch (err) {
     console.error("❌ Excel Conversion failed:", err);
-    res.status(500).json({ error: "Excel Conversion failed: " + err.message });
+    if (conversionId) {
+      await conversionRef.doc(conversionId).update({
+        status: "Failed",
+        progress: 100,
+      });
+    }
+    res.status(500).json({ error: "Conversion failed: " + err.message });
   }
 });
+
 
 
 

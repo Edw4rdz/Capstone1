@@ -19,7 +19,7 @@ export default function PDFToPPT() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
-
+const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
   // 🧩 Select File
   const handleFileChange = (e) => {
@@ -53,8 +53,12 @@ export default function PDFToPPT() {
         const base64PDF = reader.result.split(",")[1];
         
         // 4. Call the backend API
-        const response = await convertPDF({ base64PDF, slides });
-
+        const response = await convertPDF({
+  base64PDF,
+  slides,
+   userId: loggedInUser?.user_id,       // ✅ add this
+  fileName: file.name          // ✅ add this
+});
         if (response.data.success && response.data.slides) {
           setConvertedSlides(response.data.slides);
           setTopic(file.name.replace(".pdf", ""));
@@ -113,7 +117,7 @@ export default function PDFToPPT() {
               <i className="fa fa-home"></i> Dashboard
             </Link>
             <Link to="/conversion">
-              <i className="fa fa-history"></i> Conversions
+              <i className="fa fa-history"></i> Drafts
             </Link>
             <Link to="/settings">
               <i className="fa fa-cog"></i> Settings
