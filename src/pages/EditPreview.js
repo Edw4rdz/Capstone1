@@ -163,11 +163,11 @@ export default function EditPreview() {
 
                 <label>Slide Content</label>
                 <textarea
-                  value={s.bullets.join("\n")}
-                  onChange={(e) =>
-                    handleSlideChange(s.id, "bullets", e.target.value)
-                  }
-                />
+  value={(s.bullets || []).join("\n")}
+  onChange={(e) =>
+    handleSlideChange(s.id, "bullets", e.target.value)
+  }
+/>
 
                 <label>Image (optional)</label>
                 <input
@@ -192,10 +192,10 @@ export default function EditPreview() {
                 <div className="preview-slide">
                   <h3>{s.title || "Slide Title"}</h3>
                   <ul>
-                    {s.bullets.map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
+  {(s.bullets || []).map((b, i) => (
+    <li key={i}>{b}</li>
+  ))}
+</ul>
                   {s.imageBase64 && (
                     <img
                       src={`data:image/png;base64,${s.imageBase64}`}
